@@ -43,10 +43,11 @@ function History() {
     }
   }
 
-  const formatCurrency = (amount) => {
+  const formatCurrency = (amount, d) => {
     if (amount == null) return '-'
+    const currency = d?.currency || 'LKR'
     try {
-      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount)
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount)
     } catch {
       return amount
     }
@@ -124,7 +125,7 @@ function History() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div>
                         <div className="text-xs text-gray-500">Estimated Price</div>
-                        <div className="text-gray-900 font-semibold">{formatCurrency(details[h.id].estimated_price)}</div>
+                        <div className="text-gray-900 font-semibold">{formatCurrency(details[h.id].estimated_price, details[h.id])}</div>
                       </div>
                       <div>
                         <div className="text-xs text-gray-500">Location Score</div>
