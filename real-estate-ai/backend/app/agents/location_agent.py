@@ -278,38 +278,53 @@ class LocationAgent:
             return f"Basic location in {city}{' - ' + district if district else ''}. Area with basic amenities and potential for development."
     
     def _generate_provenance(self, lat: float, lon: float, city: str = None, district: str = None) -> List[Dict]:
-        """Generate provenance information for location analysis"""
+        """Generate provenance information for location analysis with real links"""
         provenance = []
         
         if city:
+            city_slug = city.replace(' ', '_')
             provenance.append({
-                "source": "City Analysis",
-                "method": "Sri Lankan city scoring system",
-                "confidence": 0.9,
-                "details": f"Analyzed {city} based on local market data"
+                "doc_id": f"Wikipedia - {city}",
+                "source": "Wikipedia",
+                "snippet": f"General information about {city}, Sri Lanka.",
+                "link": f"https://en.wikipedia.org/wiki/{city_slug}",
+                "confidence": 0.9
             })
         
         if district:
+            q = f"{district} Sri Lanka district"
             provenance.append({
-                "source": "District Analysis",
-                "method": "Local area scoring",
-                "confidence": 0.85,
-                "details": f"Evaluated {district} within {city}"
+                "doc_id": f"District Profile - {district}",
+                "source": "Web Search",
+                "snippet": f"Overview and stats for {district} District, Sri Lanka.",
+                "link": f"https://www.google.com/search?q={q.replace(' ', '+')}",
+                "confidence": 0.85
             })
         
         if lat and lon:
+            lat_str = f"{lat:.6f}"
+            lon_str = f"{lon:.6f}"
             provenance.append({
-                "source": "Coordinate Analysis",
-                "method": "Geographic proximity scoring",
-                "confidence": 0.8,
-                "details": f"Analyzed location at coordinates {lat:.4f}, {lon:.4f}"
+                "doc_id": "OpenStreetMap View",
+                "source": "OpenStreetMap",
+                "snippet": f"Map view centered at coordinates {lat_str}, {lon_str}.",
+                "link": f"https://www.openstreetmap.org/#map=16/{lat_str}/{lon_str}",
+                "confidence": 0.8
+            })
+            provenance.append({
+                "doc_id": "Google Maps",
+                "source": "Google Maps",
+                "snippet": "Interactive map and nearby amenities.",
+                "link": f"https://www.google.com/maps/@{lat_str},{lon_str},16z",
+                "confidence": 0.8
             })
         
         provenance.append({
-            "source": "Sri Lanka Market Data",
-            "method": "Local real estate analysis",
-            "confidence": 0.9,
-            "details": "Based on Sri Lankan property market trends"
+            "doc_id": "Sri Lanka Real Estate Insights",
+            "source": "Market Data",
+            "snippet": "General trends and references for Sri Lankan property market.",
+            "link": "https://www.google.com/search?q=sri+lanka+real+estate+market+trends",
+            "confidence": 0.7
         })
         
         return provenance

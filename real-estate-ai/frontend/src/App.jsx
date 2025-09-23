@@ -4,6 +4,7 @@ import Navbar from './components/Navbar'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Query from './pages/Query'
+import History from './pages/History'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import './App.css'
 
@@ -34,6 +35,10 @@ function AppContent() {
           <Route 
             path="/query" 
             element={isAuthenticated ? <Query /> : <Navigate to="/login" />} 
+          />
+          <Route 
+            path="/history" 
+            element={isAuthenticated ? <History /> : <Navigate to="/login" />} 
           />
           <Route 
             path="/" 
