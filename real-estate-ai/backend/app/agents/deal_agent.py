@@ -119,6 +119,72 @@ class DealAgent:
             logger.error(f"Error in LLM explanation: {e}")
             return None
     
+    def llm_estimate_market_value(self, features: Dict) -> Optional[Dict]:
+        """Ask Gemini to estimate market value and return JSON with provenance when possible."""
+        if not self.llm:
+            return None
+        
+        try:
+            prompt = f"""
+            You are a Sri Lankan real estate analyst. Estimate a realistic market value for the following property.
+            Do NOT invent data; if unsure, make a conservative estimate and provide rationale.
+            If you can infer price per square foot, include it. Include optional links for sources or typical market references.
+
+            Property features (JSON): {json.dumps(features)}
+
+            Return STRICT JSON with keys:
+            {{
+              "estimated_price": number,              // in LKR
+              "price_per_sqft": number,               // in LKR
+              "provenance": [                         // optional list of sources or market references
+                {{ "title": string, "link": string, "snippet": string }}
+              ],
+              "notes": string                         // brief rationale
+            }}
+            """
+            response = self.llm.generate_content(prompt)
+            data = None
+            try:
+                data = json.loads(response.text)
+            except json.JSONDecodeError:
+                # Attempt to extract JSON block heuristically
+                text = response.text
+                start = text.find('{')
+                end = text.rfind('}')
+                if start != -1 and end != -1 and end > start:
+                    try:
+                        data = json.loads(text[start:end+1])
+                    except Exception:
+                        data = None
+            
+            if not isinstance(data, dict):
+                return None
+            # Validate minimal fields
+            if 'estimated_price' not in data:
+                return None
+            if 'price_per_sqft' not in data and features.get('area'):
+                area = features.get('area') or 0
+                if area > 0:
+                    data['price_per_sqft'] = data['estimated_price'] / area
+            # Normalize provenance
+            prov = data.get('provenance') or []
+            if isinstance(prov, list):
+                norm = []
+                for p in prov:
+                    if isinstance(p, dict):
+                        norm.append({
+                            'doc_id': p.get('title') or p.get('name') or 'Market Reference',
+                            'link': p.get('link') or p.get('url') or '',
+                            'snippet': p.get('snippet') or ''
+                        })
+                data['provenance'] = norm
+            else:
+                data['provenance'] = []
+            return data
+        except Exception as e:
+            logger.error(f"Error in llm_estimate_market_value: {e}")
+            return None
+    
     def _fallback_land_analysis(self, features: Dict, location_analysis: Dict) -> Dict:
         """Fallback land analysis when AI is not available"""
         land_size = features.get('land_size', 0)
