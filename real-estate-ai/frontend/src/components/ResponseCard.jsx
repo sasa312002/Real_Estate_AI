@@ -24,9 +24,10 @@ function ResponseCard({ response }) {
   }
 
   const formatCurrency = (amount) => {
+    const currency = response?.currency || 'LKR'
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount)

@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { propertyAPI } from '../services/api'
 import ResponseCard from '../components/ResponseCard'
-import { Home, MapPin, Bed, Bath, Ruler, Calendar, DollarSign } from 'lucide-react'
+import { Home, MapPin, Bed, Bath, Ruler, Calendar } from 'lucide-react'
 
 function Query() {
   const { user } = useAuth()
@@ -130,7 +130,7 @@ function Query() {
 
               <div>
                 <label htmlFor="asking_price" className="block text-sm font-medium text-gray-700 mb-2">
-                  <DollarSign className="inline w-4 h-4 mr-1" />
+                  <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded bg-blue-50 text-blue-700 border border-blue-200 mr-1">LKR</span>
                   Asking Price *
                 </label>
                 <input
@@ -139,7 +139,7 @@ function Query() {
                   required
                   min="0"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  placeholder="e.g., 200000"
+                  placeholder="e.g., 20000000"
                   value={formData.features.asking_price}
                   onChange={(e) => handleInputChange('asking_price', e.target.value)}
                 />
