@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { feedbackAPI } from '../services/api'
 import { ThumbsUp, ThumbsDown, ExternalLink, FileText } from 'lucide-react'
+import MapPreview from './MapPreview'
 
 function ResponseCard({ response }) {
   const [feedback, setFeedback] = useState(null)
@@ -46,6 +47,39 @@ function ResponseCard({ response }) {
     return { title, snippet, link }
   }
 
+  const extractCoordsFromLink = (url) => {
+    if (!url) return null
+    try {
+      // Google Maps patterns: @lat,lon, or q=lat,lon
+      const atMatch = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
+      if (atMatch) return { lat: parseFloat(atMatch[1]), lon: parseFloat(atMatch[2]) }
+      const qMatch = url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/)
+      if (qMatch) return { lat: parseFloat(qMatch[1]), lon: parseFloat(qMatch[2]) }
+      // OpenStreetMap pattern: /#map=zoom/lat/lon
+      const osmMatch = url.match(/#map=\d+\/(-?\d+\.\d+)\/(-?\d+\.\d+)/)
+      if (osmMatch) return { lat: parseFloat(osmMatch[1]), lon: parseFloat(osmMatch[2]) }
+    } catch {}
+    return null
+  }
+
+  const coords = (() => {
+    // Prefer explicit coordinates if present on response
+    if (response?.features?.lat && response?.features?.lon) {
+      const lat = parseFloat(response.features.lat)
+      const lon = parseFloat(response.features.lon)
+      if (!isNaN(lat) && !isNaN(lon)) return { lat, lon }
+    }
+    // Fallback: search provenance links for coords
+    if (Array.isArray(response?.provenance)) {
+      for (const raw of response.provenance) {
+        const p = normalizeProv(raw)
+        const c = extractCoordsFromLink(p.link)
+        if (c) return c
+      }
+    }
+    return null
+  })()
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6 space-y-6">
       <h3 className="text-xl font-semibold text-gray-900">Analysis Results</h3>
@@ -74,6 +108,11 @@ function ResponseCard({ response }) {
             <FileText className="h-4 w-4 mr-2" />
             Sources & References
           </h4>
+          {coords && (
+            <div className="mb-3">
+              <MapPreview lat={coords.lat} lon={coords.lon} height={200} popupText="Property Area" />
+            </div>
+          )}
           <div className="space-y-2">
             {response.provenance.map((raw, index) => {
               const p = normalizeProv(raw)

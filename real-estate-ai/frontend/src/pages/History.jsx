@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { propertyAPI } from '../services/api'
 import { Clock, Search, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
+import MapPreview from '../components/MapPreview'
 
 function History() {
   const [items, setItems] = useState([])
@@ -65,6 +66,29 @@ function History() {
     const snippet = item.snippet || item.summary || item.text || item.description || ''
     const link = item.link || item.url || item.href || ''
     return { title, snippet, link }
+  }
+
+  const extractCoordsFromLink = (url) => {
+    if (!url) return null
+    try {
+      const atMatch = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
+      if (atMatch) return { lat: parseFloat(atMatch[1]), lon: parseFloat(atMatch[2]) }
+      const qMatch = url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/)
+      if (qMatch) return { lat: parseFloat(qMatch[1]), lon: parseFloat(qMatch[2]) }
+      const osmMatch = url.match(/#map=\d+\/(-?\d+\.\d+)\/(-?\d+\.\d+)/)
+      if (osmMatch) return { lat: parseFloat(osmMatch[1]), lon: parseFloat(osmMatch[2]) }
+    } catch {}
+    return null
+  }
+
+  const firstCoords = (prov) => {
+    if (!Array.isArray(prov)) return null
+    for (const raw of prov) {
+      const p = normalizeProv(raw)
+      const c = extractCoordsFromLink(p.link)
+      if (c) return c
+    }
+    return null
   }
 
   return (
@@ -143,6 +167,11 @@ function History() {
                     {Array.isArray(details[h.id].provenance) && details[h.id].provenance.length > 0 && (
                       <div>
                         <div className="text-xs text-gray-500 mb-2">Sources & References</div>
+                        {firstCoords(details[h.id].provenance) && (
+                          <div className="mb-2">
+                            <MapPreview lat={firstCoords(details[h.id].provenance).lat} lon={firstCoords(details[h.id].provenance).lon} height={180} popupText="Property Area" />
+                          </div>
+                        )}
                         <div className="space-y-2">
                           {details[h.id].provenance.map((raw, idx) => {
                             const p = normalizeProv(raw)

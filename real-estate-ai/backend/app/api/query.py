@@ -202,9 +202,23 @@ async def get_query_details(
 async def _run_analysis_pipeline(features: Dict[str, Any], query_text: str) -> Dict[str, Any]:
     """Run the complete AI analysis pipeline including land details"""
     try:
-        # 1. Price estimation
+        # 1. Price estimation (heuristic)
         price_result = price_agent.estimate_price(features)
         estimated_price = price_result['estimated_price']
+        price_per_sqft = price_result.get('price_per_sqft', 0)
+        provenance: List[Dict[str, Any]] = []
+        
+        # 1b. Try Gemini-backed estimate if available; blend conservatively
+        llm_price = deal_agent.llm_estimate_market_value(features)
+        if llm_price and isinstance(llm_price, dict) and llm_price.get('estimated_price', 0) > 0:
+            # Blend: average weighted by heuristic confidence
+            heuristic_conf = price_result.get('confidence', 0.6)
+            blended = (heuristic_conf * estimated_price) + ((1 - heuristic_conf) * llm_price['estimated_price'])
+            estimated_price = round(blended, 2)
+            if features.get('area'):
+                price_per_sqft = round(estimated_price / (features.get('area') or 1), 2)
+            # Merge provenance
+            provenance.extend(llm_price.get('provenance', []))
         
         # 2. Location analysis
         location_result = location_agent.analyze_location(
@@ -214,6 +228,7 @@ async def _run_analysis_pipeline(features: Dict[str, Any], query_text: str) -> D
             features.get('district')
         )
         location_score = location_result['score']
+        provenance.extend(location_result.get('provenance', []))
         
         # 3. Deal evaluation
         asking_price = features.get('asking_price', 0)
@@ -231,10 +246,10 @@ async def _run_analysis_pipeline(features: Dict[str, Any], query_text: str) -> D
             'deal_verdict': deal_result['verdict'],
             'why': deal_result['why'],
             'confidence': min(price_result['confidence'], deal_result['confidence']),
-            'provenance': location_result['provenance'],
+            'provenance': provenance,
             'land_details': land_details,
             'currency': 'LKR',
-            'price_per_sqft': price_result.get('price_per_sqft', 0)
+            'price_per_sqft': price_per_sqft
         }
         
         # 6. Try to get LLM explanation if available
