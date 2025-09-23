@@ -36,6 +36,15 @@ function ResponseCard({ response }) {
     return `${(value * 100).toFixed(1)}%`
   }
 
+  const normalizeProv = (item) => {
+    if (item == null) return { title: 'Source', snippet: '', link: '' }
+    if (typeof item === 'string') return { title: item, snippet: '', link: '' }
+    const title = item.title || item.name || item.doc_id || item.id || item.source || 'Source'
+    const snippet = item.snippet || item.summary || item.text || item.description || ''
+    const link = item.link || item.url || item.href || ''
+    return { title, snippet, link }
+  }
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6 space-y-6">
       <h3 className="text-xl font-semibold text-gray-900">Analysis Results</h3>
@@ -58,34 +67,39 @@ function ResponseCard({ response }) {
       </div>
 
       {/* Provenance */}
-      {response.provenance && response.provenance.length > 0 && (
+      {Array.isArray(response.provenance) && response.provenance.length > 0 && (
         <div>
           <h4 className="font-medium text-gray-900 mb-3 flex items-center">
             <FileText className="h-4 w-4 mr-2" />
             Sources & References
           </h4>
           <div className="space-y-2">
-            {response.provenance.map((item, index) => (
-              <div key={index} className="bg-gray-50 p-3 rounded-md">
-                <div className="text-sm font-medium text-gray-900 mb-1">
-                  {item.doc_id}
+            {response.provenance.map((raw, index) => {
+              const p = normalizeProv(raw)
+              return (
+                <div key={index} className="bg-gray-50 p-3 rounded-md">
+                  <div className="text-sm font-medium text-gray-900 mb-1">
+                    {p.title}
+                  </div>
+                  {p.snippet && (
+                    <div className="text-sm text-gray-600 mb-2">
+                      {p.snippet}
+                    </div>
+                  )}
+                  {p.link && (
+                    <a
+                      href={p.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center text-xs text-primary-600 hover:text-primary-700"
+                    >
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                      View Source
+                    </a>
+                  )}
                 </div>
-                <div className="text-sm text-gray-600 mb-2">
-                  {item.snippet}
-                </div>
-                {item.link && (
-                  <a
-                    href={item.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center text-xs text-primary-600 hover:text-primary-700"
-                  >
-                    <ExternalLink className="h-3 w-3 mr-1" />
-                    View Source
-                  </a>
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}

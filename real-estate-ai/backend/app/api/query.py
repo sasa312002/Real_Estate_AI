@@ -152,6 +152,53 @@ async def get_query_history(
             detail="Internal server error fetching query history"
         )
 
+@router.get("/details/{query_id}", response_model=PropertyResponse)
+async def get_query_details(
+    query_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get full analysis details for a user's past query"""
+    try:
+        # Validate ObjectId
+        if not ObjectId.is_valid(query_id):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid query id")
+        
+        # Load query and verify ownership
+        query = await Query.get(ObjectId(query_id))
+        if not query:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Query not found")
+        if query.user_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view this query")
+        
+        # Load response
+        response = await Response.find_one({"query_id": query.id})
+        if not response:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis not found for this query")
+        
+        # Build response payload
+        provenance = response.provenance or []
+        return PropertyResponse(
+            estimated_price=response.estimated_price or 0,
+            location_score=response.location_score or 0,
+            deal_verdict=response.deal_verdict,
+            why=response.why,
+            provenance=provenance,
+            confidence=response.confidence or 0,
+            query_id=str(query.id),
+            response_id=str(response.id),
+            land_details=None,
+            currency="LKR",
+            price_per_sqft=None
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching query details: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error fetching query details"
+        )
+
 async def _run_analysis_pipeline(features: Dict[str, Any], query_text: str) -> Dict[str, Any]:
     """Run the complete AI analysis pipeline including land details"""
     try:
