@@ -94,6 +94,5 @@ Vite proxy forwards `"/api"` to the backend at `http://localhost:8000` (configur
 ## Notes
 - All prices are displayed in LKR. The estimator blends heuristics with AI when available; it does not pull live MLS data by default.
 - To avoid committing build artifacts and caches, ensure a `.gitignore` exists at repo root.
-
 ## License
 MIT (or your preferred license).
