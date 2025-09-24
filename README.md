@@ -8,6 +8,7 @@ An end-to-end web app that analyzes Sri Lankan real estate using AI. Users can l
 - User history: browse previously analyzed properties and expand to see full details
 - Sources & references: links that explain how the decision was made
 - Feedback on AI responses (helpful / not helpful)
+- feed
 
 ## How It Works
 - Backend (FastAPI)
