@@ -89,6 +89,7 @@ Vite proxy forwards `"/api"` to the backend at `http://localhost:8000` (configur
 - `GET /property/details/{query_id}` — get full details for a past query
 - `POST /auth/signup`, `POST /auth/login`, `GET /auth/me`
 - `POST /feedback/` — submit feedback for a response
+- 
 
 ## Notes
 - All prices are displayed in LKR. The estimator blends heuristics with AI when available; it does not pull live MLS data by default.
