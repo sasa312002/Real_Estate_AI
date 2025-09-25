@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { Sun, Moon, LogOut, User, Home } from 'lucide-react'
 
+//header component with logo, theme toggle, user info, and auth buttons
 const Header = () => {
   const { user, logout, isAuthenticated } = useAuth()
   const { isDarkMode, toggleTheme } = useTheme()
