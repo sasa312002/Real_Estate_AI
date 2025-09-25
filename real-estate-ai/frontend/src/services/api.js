@@ -50,6 +50,7 @@ export const propertyAPI = {
   history: (limit = 10) => api.get(`/property/history?limit=${limit}`),
   details: (queryId) => api.get(`/property/details/${queryId}`),
   deleteHistory: (queryId) => api.delete(`/property/history/${queryId}`),
+  suggestTags: (text) => api.get(`/property/suggest_tags`, { params: { q: text } })
 }
 
 export const feedbackAPI = {

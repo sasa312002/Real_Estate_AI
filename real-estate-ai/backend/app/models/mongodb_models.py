@@ -31,6 +31,8 @@ class Query(Document):
     
     user_id: ObjectId
     query_text: str
+    # Optional semantic tags (amenities / features) selected by user and derived from description
+    tags: Optional[List[str]] = None
     city: Optional[str] = None
     lat: Optional[float] = None
     lon: Optional[float] = None

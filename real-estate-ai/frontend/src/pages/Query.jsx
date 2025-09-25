@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { propertyAPI } from '../services/api'
 import ResponseCard from '../components/ResponseCard'
@@ -15,6 +15,7 @@ function Query() {
   
   const [formData, setFormData] = useState({
     query: '',
+    tags: [],
     features: {
       city: '',
       lat: '',
@@ -26,6 +27,9 @@ function Query() {
       asking_price: ''
     }
   })
+  const [tagSuggestions, setTagSuggestions] = useState([])
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false)
+  const debounceRef = useRef(null)
   
   const [selectedLocation, setSelectedLocation] = useState(null)
   const sriLankaCities = [
@@ -69,12 +73,33 @@ function Query() {
   const handleInputChange = (field, value) => {
     if (field === 'query') {
       setFormData(prev => ({ ...prev, query: value }))
+      // Debounce suggestions fetch
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      debounceRef.current = setTimeout(async () => {
+        if (!value || value.trim().length < 4) {
+          setTagSuggestions([]); setShowTagSuggestions(false); return
+        }
+        try {
+          const res = await propertyAPI.suggestTags(value)
+          setTagSuggestions(res.data.tags || [])
+          setShowTagSuggestions(true)
+        } catch (_) {
+          setTagSuggestions([])
+        }
+      }, 400)
     } else {
       setFormData(prev => ({
         ...prev,
         features: { ...prev.features, [field]: value }
       }))
     }
+  }
+
+  const toggleTag = (tag) => {
+    setFormData(prev => {
+      const exists = prev.tags.includes(tag)
+      return { ...prev, tags: exists ? prev.tags.filter(t => t !== tag) : [...prev.tags, tag] }
+    })
   }
 
   const handleLocationChange = (lat, lng) => {
@@ -110,7 +135,8 @@ function Query() {
 
       const result = await propertyAPI.query({
         query: formData.query,
-        features
+        features,
+        tags: formData.tags
       })
 
       setResponse(result.data)
@@ -180,7 +206,7 @@ function Query() {
           </h2>
           
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
+            <div className="relative">
               <label htmlFor="query" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                 📝 Property Description (Optional)
               </label>
@@ -192,6 +218,32 @@ function Query() {
                 value={formData.query}
                 onChange={(e) => handleInputChange('query', e.target.value)}
               />
+              {/* Selected Tags */}
+              {formData.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {formData.tags.map(tag => (
+                    <span key={tag} className="px-2 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs rounded-full cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-800"
+                      onClick={() => toggleTag(tag)} title="Remove tag">
+                      {tag} ✕
+                    </span>
+                  ))}
+                </div>
+              )}
+              {/* Suggestions */}
+              {showTagSuggestions && tagSuggestions.length > 0 && (
+                <div className="absolute z-30 mt-2 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 max-h-60 overflow-auto">
+                  <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2 font-semibold">Suggested Tags</p>
+                  <div className="flex flex-wrap gap-2">
+                    {tagSuggestions.map(s => (
+                      <button type="button" key={s.tag} className={`px-2 py-1 rounded-full text-xs border transition-colors ${formData.tags.includes(s.tag) ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-blue-100 dark:hover:bg-blue-800/40'}`}
+                        onClick={() => toggleTag(s.tag)}>
+                        {s.tag}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" className="mt-3 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" onClick={() => setShowTagSuggestions(false)}>Hide suggestions</button>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
