@@ -10,6 +10,8 @@ function Query() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [response, setResponse] = useState(null)
+  // Dynamically determine current year for validation of Year Built field
+  const currentYear = new Date().getFullYear()
   
   const [formData, setFormData] = useState({
     query: '',
@@ -317,11 +319,22 @@ function Query() {
                   type="number"
                   id="year_built"
                   min="1800"
-                  max="2030"
+                  // Only allow current year or past years
+                  max={currentYear}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   placeholder="e.g., 2015"
                   value={formData.features.year_built}
-                  onChange={(e) => handleInputChange('year_built', e.target.value)}
+                  onChange={(e) => {
+                    let val = e.target.value
+                    if (val === '') { return handleInputChange('year_built', '') }
+                    const numeric = parseInt(val, 10)
+                    if (!isNaN(numeric)) {
+                      if (numeric > currentYear) {
+                        return handleInputChange('year_built', currentYear.toString())
+                      }
+                    }
+                    handleInputChange('year_built', val)
+                  }}
                 />
               </div>
 
