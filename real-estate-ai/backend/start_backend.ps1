@@ -9,4 +9,12 @@ Write-Host "Starting Real Estate AI Backend with MongoDB Atlas..." -ForegroundCo
 Write-Host "MongoDB URL: $env:MONGODB_URL" -ForegroundColor Yellow
 Write-Host "Backend will be available at: http://localhost:8000" -ForegroundColor Cyan
 
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+# Prefer project-local virtual environment python if it exists
+$venvPython = Join-Path $PSScriptRoot '.venv/Scripts/python.exe'
+if (Test-Path $venvPython) {
+	Write-Host "Using venv interpreter: $venvPython" -ForegroundColor DarkCyan
+	& $venvPython -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+} else {
+	Write-Warning "Virtual environment python not found at $venvPython; falling back to system 'python'"
+	python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+}
