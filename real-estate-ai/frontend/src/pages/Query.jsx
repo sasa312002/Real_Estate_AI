@@ -402,7 +402,7 @@ function Query() {
               />
             </div>
 
-            {/* Manual Coordinates (hidden but accessible for debugging) */}
+            {/* Manual Coordinates*/}
             <div className="grid grid-cols-2 gap-4">
               <input
                 type="hidden"

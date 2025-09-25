@@ -61,7 +61,7 @@ function LocationPicker({ selectedLocation, onLocationChange, city, className = 
     'wattala': [6.9909, 79.8808],
     'negombo': [7.2083, 79.8358],
     'katunayake': [7.1695, 79.8908],
-    'seeduwa': [7.1376, 79.8866],
+
     'kelaniya': [6.9613, 79.9308],
     'kiribathgoda': [6.9724, 79.9253],
     // Central Province
@@ -193,7 +193,6 @@ function LocationPicker({ selectedLocation, onLocationChange, city, className = 
             position={selectedLocation}
             onLocationSelect={handleLocationSelect}
           />
-          {/* If user hasn't clicked yet, still show city center marker (already covered by selectedLocation after effect) */}
           {!selectedLocation && city && cityCoordinates[city.toLowerCase()] && (
             <Marker position={cityCoordinates[city.toLowerCase()]} icon={selectedLocationIcon}>
               <Popup>
