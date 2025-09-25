@@ -1,10 +1,12 @@
 import React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { Home, LogOut, User } from 'lucide-react'
+import { useTheme } from '../contexts/ThemeContext'
+import { Home, LogOut, User, Sun, Moon } from 'lucide-react'
 
 function Navbar() {
   const { user, logout } = useAuth()
+  const { isDarkMode, toggleTheme } = useTheme()
   const navigate = useNavigate()
 
   const handleLogout = () => {
@@ -17,28 +19,38 @@ function Navbar() {
   }
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200">
+    <nav className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center space-x-6">
             <Link to="/query" className="flex items-center">
-              <Home className="h-8 w-8 text-primary-600 mr-2" />
-              <span className="text-xl font-bold text-gray-900">Real Estate AI</span>
+              <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center mr-2">
+                <span className="text-white font-bold text-sm">RE</span>
+              </div>
+              <span className="text-xl font-bold text-gray-900 dark:text-white">Real Estate AI</span>
             </Link>
-            <Link to="/history" className="text-sm font-medium text-gray-700 hover:text-gray-900">
+            <Link to="/history" className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
               History
             </Link>
           </div>
 
           <div className="flex items-center space-x-4">
-            <div className="flex items-center text-sm text-gray-700">
+            <button
+              onClick={toggleTheme}
+              className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+              aria-label="Toggle theme"
+            >
+              {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </button>
+            
+            <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
               <User className="h-4 w-4 mr-1" />
               {user.username}
             </div>
             
             <button
               onClick={handleLogout}
-              className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+              className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
             >
               <LogOut className="h-4 w-4 mr-1" />
               Logout
