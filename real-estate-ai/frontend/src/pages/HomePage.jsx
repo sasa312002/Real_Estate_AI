@@ -327,7 +327,6 @@ const HomePage = () => {
                 <li><a href="#" className="hover:text-white transition-colors">Price Estimator</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Location Analyzer</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Deal Evaluator</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Market Insights</a></li>
               </ul>
             </div>
             
@@ -345,15 +344,13 @@ const HomePage = () => {
               <h3 className="font-semibold mb-4">Support</h3>
               <ul className="space-y-2 text-gray-400">
                 <li><a href="#" className="hover:text-white transition-colors">Help Center</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Documentation</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">API</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Status</a></li>
               </ul>
             </div>
           </div>
           
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 Real Estate AI Sri Lanka. All rights reserved.</p>
+            <p>&copy; 2025 Real Estate AI Sri Lanka. All rights reserved.</p>
           </div>
         </div>
       </footer>
