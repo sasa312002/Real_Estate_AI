@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, useMapEvents, Popup } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -40,24 +40,94 @@ function LocationMarker({ position, onLocationSelect }) {
 function LocationPicker({ selectedLocation, onLocationChange, city, className = '' }) {
   const [mapCenter, setMapCenter] = useState([6.9271, 79.8612]) // Default to Colombo
   const [zoom, setZoom] = useState(13)
-  
-  // City coordinates mapping for Sri Lanka
+
+  // Extended Sri Lanka city coordinates (approximate)
   const cityCoordinates = {
+    // Western Province & Metro
     'colombo': [6.9271, 79.8612],
-    'kandy': [7.2906, 80.6337],
-    'galle': [6.0535, 80.2210],
-    'jaffna': [9.6615, 80.0255],
+    'dehiwala': [6.8402, 79.8712],
+    'mount lavinia': [6.8402, 79.8712],
+    'moratuwa': [6.7730, 79.8816],
+    'kesbewa': [6.7844, 79.9660],
+    'maharagama': [6.8480, 79.9288],
+    'kotte': [6.9022, 79.9090],
+    'kaduwela': [6.9333, 79.9833],
+    'homagama': [6.8432, 80.0020],
+    'pannipitiya': [6.8480, 79.9410],
+    'battaramulla': [6.9096, 79.9220],
+    'ragama': [7.0244, 79.9217],
+    'ja-ela': [7.0744, 79.8910],
+    'jaela': [7.0744, 79.8910],
+    'wattala': [6.9909, 79.8808],
     'negombo': [7.2083, 79.8358],
-    'batticaloa': [7.7102, 81.6924],
+    'katunayake': [7.1695, 79.8908],
+    'seeduwa': [7.1376, 79.8866],
+    'kelaniya': [6.9613, 79.9308],
+    'kiribathgoda': [6.9724, 79.9253],
+    // Central Province
+    'kandy': [7.2906, 80.6337],
+    'gampola': [7.1642, 80.5766],
+    'nawalapitiya': [7.0536, 80.5347],
+    'peradeniya': [7.2558, 80.5986],
+    'matale': [7.4659, 80.6234],
+    'dambulla': [7.8566, 80.6490],
+    'nuwara eliya': [6.9497, 80.7891],
+    'hatton': [6.8916, 80.5953],
+    'talawakele': [6.9373, 80.6613],
+    'bandarawela': [6.8298, 80.9870],
+    'haputale': [6.7667, 80.9667],
+    // Southern
+    'galle': [6.0535, 80.2210],
+    'matara': [5.9485, 80.5353],
+    'weligama': [5.9730, 80.4297],
+    'hambantota': [6.1241, 81.1185],
+    'tangalle': [6.0236, 80.7966],
+    'ambalangoda': [6.2350, 80.0536],
+    'hikkaduwa': [6.1400, 80.1000],
+    'tissamaharama': [6.2833, 81.2833],
+    // Northern
+    'jaffna': [9.6615, 80.0255],
+    'mannar': [8.9770, 79.9091],
+    'kilinochchi': [9.3961, 80.3982],
+    'vavuniya': [8.7510, 80.4970],
+    'point pedro': [9.8167, 80.2333],
+    'chavakachcheri': [9.6650, 80.1626],
+    'mulaitivu': [9.2671, 80.8149],
+    // Eastern
     'trincomalee': [8.5874, 81.2152],
+    'batticaloa': [7.7102, 81.6924],
+    'kalmunai': [7.4159, 81.8164],
+    'ampara': [7.3018, 81.6747],
+    'kattankudy': [7.6737, 81.7337],
+    'eravur': [7.7782, 81.6145],
+    'valachchenai': [7.9347, 81.5612],
+    'kalkudah': [7.9208, 81.5614],
+    'sainthamaruthu': [7.3714, 81.8369],
+    // North Western
+    'kurunegala': [7.4863, 80.3647],
+    'kuliyapitiya': [7.4686, 80.0409],
+    'narammala': [7.4308, 80.2159],
+    'pannala': [7.3273, 79.9926],
+    'puttalam': [8.0362, 79.8283],
+    'chilaw': [7.5758, 79.7953],
+    'wennappuwa': [7.2792, 79.8589],
+    'anamaduwa': [7.8803, 80.0286],
+    'maho': [7.8228, 80.2776],
+    // North Central
     'anuradhapura': [8.3114, 80.4037],
     'polonnaruwa': [7.9403, 81.0188],
-    'matara': [5.9485, 80.5353],
-    'ratnapura': [6.6828, 80.4126],
-    'kurunegala': [7.4863, 80.3647],
+    'hingurakgoda': [8.0402, 80.9517],
+    'medirigiriya': [8.1803, 81.0997],
+    // Uva
     'badulla': [6.9934, 81.0550],
-    'nuwara eliya': [6.9497, 80.7891],
-    'hambantota': [6.1241, 81.1185]
+    'monaragala': [6.8726, 81.3480],
+    'bibile': [7.1667, 81.2167],
+    'welimada': [6.9000, 80.9000],
+    // Sabaragamuwa
+    'ratnapura': [6.6828, 80.4126],
+    'balangoda': [6.6630, 80.7041],
+    'kegalle': [7.2513, 80.3464],
+    'mawanella': [7.2528, 80.4381]
   }
 
   // Update map center when city changes
@@ -68,9 +138,13 @@ function LocationPicker({ selectedLocation, onLocationChange, city, className = 
       if (coordinates) {
         setMapCenter(coordinates)
         setZoom(13)
+        // Auto-select coordinates if user hasn't chosen a custom point yet
+        if (!selectedLocation) {
+          onLocationChange(coordinates[0], coordinates[1])
+        }
       }
     }
-  }, [city])
+  }, [city, selectedLocation])
 
   const handleLocationSelect = (lat, lng) => {
     const newLocation = [lat, lng]
@@ -114,10 +188,19 @@ function LocationPicker({ selectedLocation, onLocationChange, city, className = 
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
+          {/* Primary user-selected marker */}
           <LocationMarker
             position={selectedLocation}
             onLocationSelect={handleLocationSelect}
           />
+          {/* If user hasn't clicked yet, still show city center marker (already covered by selectedLocation after effect) */}
+          {!selectedLocation && city && cityCoordinates[city.toLowerCase()] && (
+            <Marker position={cityCoordinates[city.toLowerCase()]} icon={selectedLocationIcon}>
+              <Popup>
+                {city.charAt(0).toUpperCase() + city.slice(1)} (City Center)<br/>Click elsewhere to refine.
+              </Popup>
+            </Marker>
+          )}
         </MapContainer>
       </div>
       

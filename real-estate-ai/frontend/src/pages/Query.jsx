@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { propertyAPI } from '../services/api'
 import ResponseCard from '../components/ResponseCard'
 import LocationPicker from '../components/LocationPicker'
-import { Home, MapPin, Bed, Bath, Ruler, Calendar, ArrowUpRight } from 'lucide-react'
+import { Home, MapPin, Bed, Bath, Ruler, Calendar, ArrowUpRight, X } from 'lucide-react'
 
 function Query() {
   const { user } = useAuth()
@@ -26,6 +26,43 @@ function Query() {
   })
   
   const [selectedLocation, setSelectedLocation] = useState(null)
+  const sriLankaCities = [
+    'Colombo','Dehiwala','Mount Lavinia','Moratuwa','Kesbewa','Maharagama','Kotte','Kaduwela','Homagama','Pannipitiya','Padukka','Battaramulla','Ragama','Ja-Ela','Negombo','Katunayake','Seeduwa','Wattala','Kelaniya','Kiribathgoda','Pitipana',
+    'Kandy','Gampola','Nawalapitiya','Katugastota','Peradeniya','Matale','Dambulla','Nuwara Eliya','Hatton','Talawakele','Bandarawela','Haputale',
+    'Galle','Matara','Weligama','Hambantota','Tangalle','Ambalangoda','Hikkaduwa','Hakmana','Tissamaharama',
+    'Jaffna','Mannar','Kilinochchi','Vavuniya','Point Pedro','Chavakachcheri','Mulaitivu',
+    'Trincomalee','Batticaloa','Kalmunai','Ampara','Kattankudy','Eravur','Valachchenai','Kalkudah','Sainthamaruthu',
+    'Kurunegala','Kuliyapitiya','Narammala','Pannala','Puttalam','Chilaw','Wennappuwa','Anamaduwa','Maho',
+    'Anuradhapura','Polonnaruwa','Hingurakgoda','Medirigiriya',
+    'Badulla','Monaragala','Bibile','Welimada',
+    'Ratnapura','Balangoda','Kegalle','Mawanella'
+  ]
+  const [cityQuery, setCityQuery] = useState('')
+  const [citySuggestions, setCitySuggestions] = useState([])
+  const [showCityDropdown, setShowCityDropdown] = useState(false)
+
+  const updateCitySuggestions = (value) => {
+    const v = value.trim().toLowerCase()
+    if (!v) { setCitySuggestions([]); return }
+    const filtered = sriLankaCities.filter(c => c.toLowerCase().includes(v)).slice(0,8)
+    setCitySuggestions(filtered)
+  }
+
+  const handleCityInput = (value) => {
+    setCityQuery(value)
+    updateCitySuggestions(value)
+    handleInputChange('city', value)
+    setShowCityDropdown(true)
+  }
+
+  const selectCity = (city) => {
+    handleInputChange('city', city)
+    setCityQuery(city)
+    setCitySuggestions([])
+    setShowCityDropdown(false)
+  }
+
+  const cityValid = !formData.features.city || sriLankaCities.map(c=>c.toLowerCase()).includes(formData.features.city.toLowerCase())
 
   const handleInputChange = (field, value) => {
     if (field === 'query') {
@@ -161,15 +198,47 @@ function Query() {
                   <MapPin className="inline w-5 h-5 mr-2 text-blue-600" />
                   City *
                 </label>
-                <input
-                  type="text"
-                  id="city"
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                  placeholder="e.g., Colombo, Kandy, Galle..."
-                  value={formData.features.city}
-                  onChange={(e) => handleInputChange('city', e.target.value)}
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    id="city"
+                    required
+                    className={`w-full px-4 py-3 border ${cityValid ? 'border-gray-300 dark:border-gray-600' : 'border-red-500 dark:border-red-500'} dark:bg-gray-700 bg-white text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors pr-10`}
+                    placeholder="Start typing a Sri Lankan city..."
+                    value={cityQuery || formData.features.city}
+                    onChange={(e) => handleCityInput(e.target.value)}
+                    onFocus={() => { if(citySuggestions.length>0) setShowCityDropdown(true) }}
+                    autoComplete="off"
+                  />
+                  {cityQuery && (
+                    <button
+                      type="button"
+                      className="absolute top-1/2 -translate-y-1/2 right-3 text-gray-400 hover:text-gray-600"
+                      onClick={() => { setCityQuery(''); selectCity(''); }}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                  {showCityDropdown && citySuggestions.length > 0 && (
+                    <ul className="absolute z-20 mt-1 w-full max-h-56 overflow-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg text-sm">
+                      {citySuggestions.map(c => (
+                        <li
+                          key={c}
+                          className="px-3 py-2 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-700 dark:text-gray-200"
+                          onClick={() => selectCity(c)}
+                        >
+                          {c}
+                        </li>
+                      ))}
+                      {citySuggestions.length === 0 && (
+                        <li className="px-3 py-2 text-gray-400 dark:text-gray-500">No matches</li>
+                      )}
+                    </ul>
+                  )}
+                  {!cityValid && (
+                    <p className="mt-2 text-xs text-red-600 dark:text-red-400 font-medium">Enter a valid Sri Lankan city from the suggested list.</p>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -284,7 +353,7 @@ function Query() {
 
             <button
               type="submit"
-              disabled={loading || !formData.features.city || !formData.features.asking_price}
+              disabled={loading || !formData.features.city || !formData.features.asking_price || !cityValid}
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
             >
               {loading ? (

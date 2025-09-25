@@ -25,6 +25,27 @@ class SecurityAgent:
         # Compile patterns for efficiency
         self.toxicity_regex = re.compile('|'.join(self.toxicity_patterns), re.IGNORECASE)
         self.pii_regex = re.compile('|'.join(self.pii_patterns), re.IGNORECASE)
+        # Sri Lanka major city whitelist (can be expanded)
+        self.sri_lanka_cities = {
+            # Western Province
+            'colombo','dehiwala','mount lavinia','moratuwa','kesbewa','maharagama','kotte','kaduwela','homagama','pannipitiya','padukka','battaramulla','ragama','ja-ela','negombo','katunayake','seeduwa','wattala','kelaniya','kiribathgoda','pitipana',
+            # Central Province
+            'kandy','gampola','nawalapitiya','katugastota','peradeniya','matale','dambulla','nuwara eliya','hatton','talawakele','bandarawela','haputale',
+            # Southern Province
+            'galle','matara','weligama','hambantota','tangalle','ambalangoda','hikkaduwa','hakmana','tissamaharama',
+            # Northern Province
+            'jaffna','kachchativu','mannar','kilinochchi','vavuniya','point pedro','chavakachcheri','mulaitivu',
+            # Eastern Province
+            'trincomalee','batticaloa','kalmunai','ampara','kattankudy','eravur','valachchenai','kalkudah','sainthamaruthu',
+            # North Western
+            'kurunegala','kuliyapitiya','narammala','pannala','puttalam','chilaw','wennappuwa','anamaduwa','maho',
+            # North Central
+            'anuradhapura','polonnaruwa','hingurakgoda','medirigiriya',
+            # Uva
+            'badulla','bandarawela','monaragala','bibile','welimada',
+            # Sabaragamuwa
+            'ratnapura','balangoda','kegalle','mawanella'
+        }
     
     def sanitize_input(self, text: str) -> str:
         """
@@ -162,11 +183,15 @@ class SecurityAgent:
                 if field not in features or features[field] is None:
                     errors.append(f"Missing required field: {field}")
             
-            # Sanitize string fields
-            string_fields = ['city']
-            for field in string_fields:
-                if field in features and features[field]:
-                    sanitized[field] = self.sanitize_input(str(features[field]))
+            # City validation (Sri Lanka cities only)
+            city_raw = features.get('city')
+            if city_raw:
+                city_clean = self.sanitize_input(str(city_raw)).strip()
+                city_key = city_clean.lower()
+                if city_key not in self.sri_lanka_cities:
+                    errors.append("Invalid city: not recognized as a Sri Lankan city")
+                else:
+                    sanitized['city'] = city_clean.title()
             
             # Validate numeric fields
             numeric_fields = ['lat', 'lon', 'beds', 'baths', 'area', 'year_built', 'asking_price']
