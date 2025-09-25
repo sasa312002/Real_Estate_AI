@@ -24,7 +24,7 @@ export function Logo({ size = 12, collapsed = false, showText = true, variant = 
               <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#000" floodOpacity="0.25" />
             </filter>
           </defs>
-          <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#" + gradientId + ")" />
+          <rect x="2" y="2" width="60" height="60" rx="14" fill={`url(#${gradientId})`} />
           {/* Stylized monogram: R + AI roof/building motif */}
           <path d="M20 44V22c0-2 1.8-4 4-4h8c6 0 12 4 12 11 0 5-3 9-7 10l7 9h-8l-6-8h-2v8h-8Zm8-16h6c2 0 4-2 4-4s-2-4-4-4h-6v8Z" fill="#ffffff" fillOpacity={variant==='mono'?0.9:1} />
           <path d="M34 18 48 28v16c0 1.1-.9 2-2 2h-4V30L32 24l-6 4v-6l8-4Z" fill="#ffffff" opacity="0.9" />
