@@ -22,6 +22,7 @@ deal_agent = DealAgent()
 class PropertyQuery(BaseModel):
     query: str
     features: Dict[str, Any]
+    tags: Optional[List[str]] = None
 
 class PropertyResponse(BaseModel):
     estimated_price: float
@@ -76,6 +77,7 @@ async def analyze_property(
         db_query = Query(
             user_id=current_user.id,
             query_text=sanitized_query,
+            tags=property_query.tags or [],
             city=sanitized_features.get('city'),
             lat=sanitized_features.get('lat'),
             lon=sanitized_features.get('lon'),
@@ -89,7 +91,9 @@ async def analyze_property(
         await db_query.insert()
         
         # Run AI analysis pipeline including land details
-        analysis_result = await _run_analysis_pipeline(sanitized_features, sanitized_query)
+        analysis_result = await _run_analysis_pipeline(
+            sanitized_features, sanitized_query, property_query.tags or []
+        )
         
         # Store response in database
         db_response = Response(
@@ -264,7 +268,69 @@ async def get_query_details(
             detail="Internal server error fetching query details"
         )
 
-async def _run_analysis_pipeline(features: Dict[str, Any], query_text: str) -> Dict[str, Any]:
+@router.get("/suggest_tags")
+async def suggest_tags(q: str) -> Dict[str, Any]:
+    """Suggest semantic property tags based on partial description text.
+    Simple keyword-based matcher to avoid LLM latency/cost.
+    Returns { tags: [ { tag, category, weight } ] }
+    """
+    try:
+        text = (q or "").lower()
+        tag_catalog = {
+            'amenity': {
+                'swimming pool': ['pool'],
+                'solar power': ['solar','pv','photovoltaic'],
+                'backup generator': ['generator','backup power'],
+                'parking': ['parking','garage','car port','carport'],
+                'rooftop terrace': ['rooftop','roof terrace'],
+                'garden': ['garden','landscaped'],
+                'security system': ['cctv','security','guarded','24/7 security'],
+                'lift': ['elevator','lift'],
+                'air conditioning': ['air conditioning','a/c','ac unit']
+            },
+            'location': {
+                'sea view': ['sea view','ocean view','beachfront','beach front','sea facing'],
+                'lake view': ['lake view','lakefront'],
+                'mountain view': ['mountain view','hill view'],
+                'near school': ['near school','walking distance school','close to school'],
+                'near hospital': ['near hospital','close hospital'],
+                'public transport': ['bus stand','railway','train station','public transport']
+            },
+            'condition': {
+                'newly renovated': ['renovated','newly renovated','recently renovated'],
+                'needs renovation': ['needs renovation','fixer upper','needs work'],
+                'under construction': ['under construction','construction ongoing']
+            },
+            'sustainability': {
+                'rainwater harvesting': ['rainwater','rain water'],
+                'energy efficient': ['energy efficient','efficient appliances'],
+                'green building': ['green building','eco friendly','eco-friendly']
+            }
+        }
+        suggestions: List[Dict[str, Any]] = []
+        for category, tags in tag_catalog.items():
+            for tag_name, keywords in tags.items():
+                for kw in keywords:
+                    if kw in text:
+                        suggestions.append({
+                            'tag': tag_name,
+                            'category': category,
+                            'weight': 1.0
+                        })
+                        break
+        # De-duplicate preserving order
+        seen = set()
+        deduped = []
+        for s in suggestions:
+            if s['tag'] not in seen:
+                deduped.append(s)
+                seen.add(s['tag'])
+        return { 'tags': deduped }
+    except Exception as e:
+        logger.error(f"Tag suggestion error: {e}")
+        return { 'tags': [] }
+
+async def _run_analysis_pipeline(features: Dict[str, Any], query_text: str, tags: List[str]) -> Dict[str, Any]:
     """Run the complete AI analysis pipeline including land details"""
     try:
         # 1. Price estimation (heuristic)
@@ -272,6 +338,41 @@ async def _run_analysis_pipeline(features: Dict[str, Any], query_text: str) -> D
         estimated_price = price_result['estimated_price']
         price_per_sqft = price_result.get('price_per_sqft', 0)
         provenance: List[Dict[str, Any]] = []
+
+        # Apply simple tag-driven adjustments (amenities premium, condition)
+        tag_adjustment_factor = 1.0
+        positive_tags = {
+            'swimming pool': 0.04,
+            'solar power': 0.03,
+            'sea view': 0.06,
+            'mountain view': 0.02,
+            'lake view': 0.03,
+            'rooftop terrace': 0.02,
+            'garden': 0.015,
+            'security system': 0.015,
+            'lift': 0.015,
+            'air conditioning': 0.01,
+            'rainwater harvesting': 0.005,
+            'energy efficient': 0.01,
+            'green building': 0.02
+        }
+        negative_tags = {
+            'needs renovation': -0.07,
+            'under construction': -0.05
+        }
+        for t in tags:
+            if t in positive_tags:
+                tag_adjustment_factor += positive_tags[t]
+            if t in negative_tags:
+                tag_adjustment_factor += negative_tags[t]
+        if tag_adjustment_factor != 1.0:
+            original_price = estimated_price
+            estimated_price = round(estimated_price * tag_adjustment_factor, 2)
+            provenance.append({
+                'doc_id': 'tag_adjustment',
+                'snippet': f'Amenities/condition tags adjusted price by {(tag_adjustment_factor-1)*100:.1f}% (from {original_price} to {estimated_price}).',
+                'link': ''
+            })
         
         # 1b. Try Gemini-backed estimate if available; blend conservatively
         llm_price = deal_agent.llm_estimate_market_value(features)
@@ -319,8 +420,12 @@ async def _run_analysis_pipeline(features: Dict[str, Any], query_text: str) -> D
         
         # 6. Try to get LLM explanation if available
         if asking_price > 0 and estimated_price > 0:
+            # Include tags in features copy for LLM context
+            features_with_tags = dict(features)
+            if tags:
+                features_with_tags['tags'] = tags
             llm_explanation = deal_agent.llm_explain(
-                asking_price, estimated_price, location_score, features, location_result
+                asking_price, estimated_price, location_score, features_with_tags, location_result
             )
             if llm_explanation:
                 result['llm_explanation'] = llm_explanation
