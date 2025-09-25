@@ -41,6 +41,8 @@ export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
   signup: (userData) => api.post('/auth/signup', userData),
   me: () => api.get('/auth/me'),
+  plans: () => api.get('/auth/plans'),
+  upgrade: (plan) => api.post('/auth/upgrade', { plan }),
 }
 
 export const propertyAPI = {

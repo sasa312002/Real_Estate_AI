@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
+from typing import Dict
 from app.models.mongodb_models import User
 from app.core.security import verify_password, get_password_hash, create_access_token, verify_token
 from app.core.config import settings
@@ -28,10 +29,25 @@ class UserResponse(BaseModel):
     email: str
     username: str
     is_active: bool
+    plan: str
+    analyses_used: int
+    analyses_limit: int
+    analyses_remaining: int
 
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    plan: str
+    analyses_limit: int
+    analyses_remaining: int
+
+
+# Plan configuration
+PLAN_LIMITS = {
+    "free": 5,
+    "standard": 50,
+    "premium": 500,
+}
 
 # Helper function to get current user
 async def get_current_user(
@@ -116,7 +132,13 @@ async def signup(user_data: UserSignup):
         
         logger.info(f"New user created: {new_user.email}")
         
-        return TokenResponse(access_token=access_token)
+        limit = PLAN_LIMITS.get(new_user.plan, 0)
+        return TokenResponse(
+            access_token=access_token,
+            plan=new_user.plan,
+            analyses_limit=limit,
+            analyses_remaining=max(limit - new_user.analyses_used, 0)
+        )
         
     except HTTPException:
         raise
@@ -158,7 +180,13 @@ async def login(user_data: UserLogin):
         
         logger.info(f"User logged in: {user.email}")
         
-        return TokenResponse(access_token=access_token)
+        limit = PLAN_LIMITS.get(user.plan, 0)
+        return TokenResponse(
+            access_token=access_token,
+            plan=user.plan,
+            analyses_limit=limit,
+            analyses_remaining=max(limit - user.analyses_used, 0)
+        )
         
     except HTTPException:
         raise
@@ -172,9 +200,62 @@ async def login(user_data: UserLogin):
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """Get current user information"""
+    limit = PLAN_LIMITS.get(current_user.plan, 0)
     return UserResponse(
         id=str(current_user.id),
         email=current_user.email,
         username=current_user.username,
-        is_active=current_user.is_active
+        is_active=current_user.is_active,
+        plan=current_user.plan,
+        analyses_used=current_user.analyses_used,
+        analyses_limit=limit,
+        analyses_remaining=max(limit - current_user.analyses_used, 0)
     )
+
+
+class UpgradePlanRequest(BaseModel):
+    plan: str  # expected: free | standard | premium
+
+class UpgradePlanResponse(BaseModel):
+    plan: str
+    analyses_limit: int
+    analyses_used: int
+    analyses_remaining: int
+
+class PlansResponse(BaseModel):
+    plans: Dict[str, Dict[str, int | str]]
+
+@router.post("/upgrade", response_model=UpgradePlanResponse)
+async def upgrade_plan(req: UpgradePlanRequest, current_user: User = Depends(get_current_user)):
+    """Upgrade (or downgrade) the user's plan. Analyses_used persists; only limit changes.
+    If moving to a lower plan and usage exceeds limit, further analyses blocked until new cycle (future logic).
+    """
+    plan = req.plan.lower()
+    if plan not in PLAN_LIMITS:
+        raise HTTPException(status_code=400, detail="Invalid plan selected")
+    current_user.plan = plan
+    await current_user.save()
+    limit = PLAN_LIMITS[plan]
+    return UpgradePlanResponse(
+        plan=plan,
+        analyses_limit=limit,
+        analyses_used=current_user.analyses_used,
+        analyses_remaining=max(limit - current_user.analyses_used, 0)
+    )
+
+@router.get("/plans", response_model=PlansResponse)
+async def list_plans():
+    """List available plans with limits and prices in LKR."""
+    prices = {
+        "free": 0,
+        "standard": 2500,  # example price LKR
+        "premium": 15000,  # example price LKR
+    }
+    data: Dict[str, Dict[str, int | str]] = {}
+    for name, limit in PLAN_LIMITS.items():
+        data[name] = {
+            "limit": limit,
+            "price_LKR": prices.get(name, 0),
+            "currency": "LKR"
+        }
+    return PlansResponse(plans=data)

@@ -19,6 +19,7 @@ import {
   ChevronRight
 } from 'lucide-react'
 import { propertyAPI } from '../services/api'
+import Logo from './Logo'
 
 function Sidebar({ isOpen, onToggle, className = '' }) {
   const { user, logout } = useAuth()
@@ -181,24 +182,8 @@ function Sidebar({ isOpen, onToggle, className = '' }) {
         {/* Sidebar Header */}
         <div className={`${isCollapsed ? 'flex flex-col items-center space-y-3 p-3' : 'flex items-center justify-between p-4'} border-b border-gray-200 dark:border-gray-700`}>
           {/* Logo Section */}
-          <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3'}`}>
-            <div className={`${isCollapsed ? 'h-10 w-10' : 'h-8 w-8'} bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center transition-all duration-300 shadow-lg`}>
-              <svg className={`${isCollapsed ? 'w-5 h-5' : 'w-4 h-4'} text-white transition-all duration-300`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-            </div>
-            {!isCollapsed && (
-              <div className="flex flex-col">
-                <span className="font-bold text-gray-900 dark:text-white transition-opacity duration-300">
-                  Real Estate AI
-                </span>
-                {(window.innerWidth >= 768 && window.innerWidth < 1024) && (
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    Responsive Mode
-                  </span>
-                )}
-              </div>
-            )}
+          <div className={`flex items-center ${isCollapsed ? 'justify-center' : ''}`}>
+            <Logo size={isCollapsed ? 10 : 8} collapsed={isCollapsed} showText={!isCollapsed} />
           </div>
           
           {/* Toggle Button Section */}
@@ -289,6 +274,18 @@ function Sidebar({ isOpen, onToggle, className = '' }) {
             >
               <History className={`${isCollapsed ? 'w-6 h-6' : 'w-5 h-5'} transition-all duration-300`} />
               {!isCollapsed && <span className="font-medium transition-opacity duration-300">History</span>}
+            </button>
+            <button
+              onClick={() => handleNavigation('/plans')}
+              className={`group w-full flex items-center ${isCollapsed ? 'justify-start pl-3 pr-3 py-3' : 'space-x-3 px-4 py-3'} rounded-xl transition-all duration-200 transform hover:scale-[1.02] ${
+                isActive('/plans')
+                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700 shadow-sm'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-blue-600 dark:hover:text-blue-400'
+              }`}
+              title={isCollapsed ? 'Plans' : ''}
+            >
+              <Settings className={`${isCollapsed ? 'w-6 h-6' : 'w-5 h-5'} transition-all duration-300`} />
+              {!isCollapsed && <span className="font-medium transition-opacity duration-300">Plans & Pricing</span>}
             </button>
           </nav>
         </div>

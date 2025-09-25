@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from typing import Dict, List, Optional, Any
 from app.models.mongodb_models import User, Query, Response
-from app.api.auth import get_current_user
+from app.api.auth import get_current_user, PLAN_LIMITS
 from app.agents.price_agent import PriceAgent
 from app.agents.location_agent import LocationAgent
 from app.agents.deal_agent import DealAgent
@@ -35,6 +35,8 @@ class PropertyResponse(BaseModel):
     land_details: Optional[Dict[str, Any]] = None
     currency: str = "LKR"
     price_per_sqft: Optional[float] = None
+    plan: Optional[str] = None
+    analyses_remaining: Optional[int] = None
 
 class QueryHistory(BaseModel):
     id: str
@@ -49,6 +51,16 @@ async def analyze_property(
 ):
     """Analyze a property using AI agents including land details"""
     try:
+        # Enforce plan limits
+        plan = getattr(current_user, 'plan', 'free')
+        used = getattr(current_user, 'analyses_used', 0)
+        limit = PLAN_LIMITS.get(plan, 0)
+        if used >= limit:
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail=f"Analysis limit reached for {plan} plan. Upgrade to continue."
+            )
+
         # Security validation and sanitization
         validation_result = security_agent.validate_query_features(property_query.features)
         if not validation_result['is_valid']:
@@ -95,6 +107,15 @@ async def analyze_property(
         # Filter output for security
         filtered_result = security_agent.filter_output(analysis_result)
         
+        # Increment usage
+        try:
+            current_user.analyses_used = used + 1
+            await current_user.save()
+        except Exception as e:
+            logger.error(f"Failed to increment analyses_used: {e}")
+
+        remaining = max(limit - current_user.analyses_used, 0)
+
         return PropertyResponse(
             estimated_price=filtered_result['estimated_price'],
             location_score=filtered_result['location_score'],
@@ -106,7 +127,9 @@ async def analyze_property(
             response_id=str(db_response.id),
             land_details=filtered_result.get('land_details'),
             currency=filtered_result.get('currency', 'LKR'),
-            price_per_sqft=filtered_result.get('price_per_sqft')
+            price_per_sqft=filtered_result.get('price_per_sqft'),
+            plan=plan,
+            analyses_remaining=remaining
         )
         
     except HTTPException:
@@ -213,6 +236,10 @@ async def get_query_details(
         
         # Build response payload
         provenance = response.provenance or []
+        plan = getattr(current_user, 'plan', 'free')
+        limit = PLAN_LIMITS.get(plan, 0)
+        used = getattr(current_user, 'analyses_used', 0)
+        remaining = max(limit - used, 0)
         return PropertyResponse(
             estimated_price=response.estimated_price or 0,
             location_score=response.location_score or 0,
@@ -224,7 +251,9 @@ async def get_query_details(
             response_id=str(response.id),
             land_details=None,
             currency="LKR",
-            price_per_sqft=None
+            price_per_sqft=None,
+            plan=plan,
+            analyses_remaining=remaining
         )
     except HTTPException:
         raise
