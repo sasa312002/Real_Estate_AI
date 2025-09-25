@@ -92,11 +92,16 @@ function History() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Past Analyses</h1>
-        <p className="text-gray-600">Review your recent property analysis queries and details.</p>
+    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
+      {/* Header */}
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Analysis History</h1>
+        <p className="text-gray-600 dark:text-gray-400 mt-1">Review your recent property analysis queries and results.</p>
       </div>
+      
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="max-w-4xl mx-auto">
 
       {loading && (
         <div className="bg-white rounded-lg shadow-md p-6 text-center text-gray-500">
@@ -199,6 +204,8 @@ function History() {
             )}
           </div>
         ))}
+        </div>
+      </div>
       </div>
     </div>
   )
