@@ -161,6 +161,7 @@ function ResponseCard({ response }) {
             Helpful
           </button>
           
+          
           <button
             onClick={() => handleFeedback(false)}
             disabled={submittingFeedback}
