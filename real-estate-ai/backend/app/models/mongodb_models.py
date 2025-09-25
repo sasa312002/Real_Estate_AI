@@ -59,6 +59,19 @@ class Response(Document):
     why: str
     confidence: float
     provenance: Optional[List[Dict[str, Any]]] = None
+    # Extended AI enrichment fields (optional - may be null for legacy records)
+    market_low: Optional[float] = None
+    market_high: Optional[float] = None
+    market_range_rationale: Optional[str] = None
+    location_factor: Optional[float] = None
+    location_rationale: Optional[str] = None
+    llm_explanation: Optional[str] = None
+    deal_key_metrics: Optional[Dict[str, Any]] = None
+    deal_risk_flags: Optional[List[str]] = None
+    deal_recommendation: Optional[str] = None
+    entities: Optional[List[Dict[str, str]]] = None
+    query_summary: Optional[str] = None
+    retrieved_context: Optional[List[Dict[str, Any]]] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
     class Settings:

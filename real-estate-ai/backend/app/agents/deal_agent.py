@@ -30,37 +30,64 @@ class DealAgent:
         Returns: {verdict, why, confidence}
         """
         try:
-            # Calculate price ratio
             price_ratio = asking_price / estimated_price if estimated_price > 0 else 1.0
-            
-            # Basic rule-based evaluation
-            if price_ratio <= 0.85:
-                verdict = "Good Deal"
-                confidence = 0.8
-            elif price_ratio <= 1.15:
-                verdict = "Fair"
-                confidence = 0.7
-            else:
-                verdict = "Overpriced"
-                confidence = 0.8
-            
-            # Adjust confidence based on location score
-            if location_score > 0.8:
-                confidence += 0.1
-            elif location_score < 0.4:
-                confidence -= 0.1
-            
-            confidence = max(0.1, min(0.95, confidence))
-            
-            # Generate explanation
-            why = self._generate_explanation(asking_price, estimated_price, location_score, verdict, price_ratio)
-            
-            return {
-                "verdict": verdict,
-                "why": why,
-                "confidence": round(confidence, 2)
-            }
-            
+
+            # Fallback verdict first (used if LLM unavailable)
+            fallback = self._fallback_verdict(asking_price, estimated_price, location_score, price_ratio)
+
+            from app.core.config import settings
+            if not self.llm and settings.strict_gemini:
+                return {
+                    "verdict": "Unavailable",
+                    "why": "Gemini required but not initialized (strict mode)",
+                    "confidence": 0.0
+                }
+            if not self.llm:
+                return fallback
+
+            prompt = f"""
+You are a Sri Lankan real estate investment analyst (2025 market conditions). Determine whether this listing is a Good Deal, Fair, or Overpriced.
+
+Deal Inputs:
+{{
+    "asking_price": {asking_price},
+    "estimated_price": {estimated_price},
+    "location_score": {location_score},
+    "price_ratio": {price_ratio}
+}}
+
+Consider:
+1. Price ratio (asking / estimated) and acceptable tolerance bands in current market.
+2. Whether location_score justifies a premium; high location_score can offset modest overpricing.
+3. Risk factors (liquidity, infrastructure pipeline reality, regulatory or tourism seasonality).
+4. Conservative bias: avoid calling Good Deal unless material discount or strong qualitative upside.
+
+Return STRICT JSON ONLY:
+{{
+    "verdict": "Good Deal" | "Fair" | "Overpriced",
+    "why": "2-3 sentence professional justification (must mention location & price ratio)",
+    "confidence": number,
+    "key_metrics": {{"discount_pct": number, "premium_pct": number}},
+    "risk_flags": ["string"],
+    "recommendation": "actionable next step"
+}}
+Rules:
+ - No prose outside JSON.
+ - discount_pct = positive % below estimated if asking < estimated else 0.
+ - premium_pct = positive % above estimated if asking > estimated else 0.
+ - If data insufficient default verdict Fair with confidence <= 0.5.
+"""
+            try:
+                response = self.llm.generate_content(prompt)
+                raw_text = getattr(response, 'text', '')
+                from app.core.config import settings as _settings
+                if getattr(_settings, 'gemini_debug', False):
+                    logger.info(f"DealAgent: Raw verdict LLM response (truncated 400 chars): {raw_text[:400]}")
+                data = self._parse_verdict_response(raw_text, fallback)
+                return data
+            except Exception as e:  # pragma: no cover
+                logger.error(f"DealAgent: LLM verdict failed, using fallback. Error: {e}")
+                return fallback
         except Exception as e:
             logger.error(f"Error in deal evaluation: {e}")
             return {
@@ -76,12 +103,24 @@ class DealAgent:
         Use Gemini AI to analyze land details and provide comprehensive insights.
         Returns: Detailed land analysis including development potential, land use, etc.
         """
+        from app.core.config import settings
         if not self.llm:
+            if settings.strict_gemini:
+                return {
+                    "land_analysis": "Gemini required but not initialized (strict mode)",
+                    "development_potential": "Unknown",
+                    "land_use_opportunities": [],
+                    "error": "NO_LLM_STRICT_MODE"
+                }
             return self._fallback_land_analysis(features, location_analysis)
             
         try:
             prompt = self._build_land_analysis_prompt(features, location_analysis, asking_price, estimated_price)
             response = self.llm.generate_content(prompt)
+            raw_text = getattr(response, 'text', '')
+            from app.core.config import settings as _settings
+            if getattr(_settings, 'gemini_debug', False):
+                logger.info(f"DealAgent: Raw land analysis LLM response (truncated 400 chars): {raw_text[:400]}")
             
             # Try to parse JSON response
             try:
@@ -104,8 +143,9 @@ class DealAgent:
         Use Gemini AI to generate detailed explanation.
         Returns: JSON explanation string or None if LLM unavailable
         """
+        from app.core.config import settings
         if not self.llm:
-            return None
+            return None if settings.strict_gemini else None
             
         try:
             prompt = self._build_explanation_prompt(
@@ -113,7 +153,11 @@ class DealAgent:
             )
             
             response = self.llm.generate_content(prompt)
-            return response.text
+            raw_text = getattr(response, 'text', '')
+            from app.core.config import settings as _settings
+            if getattr(_settings, 'gemini_debug', False):
+                logger.info(f"DealAgent: Raw explanation LLM response (truncated 400 chars): {raw_text[:400]}")
+            return raw_text
             
         except Exception as e:
             logger.error(f"Error in LLM explanation: {e}")
@@ -225,6 +269,56 @@ class DealAgent:
         }
         
         return " ".join(explanations.get(verdict, ["Unable to provide explanation."]))
+
+    # ---------------- New helper methods for LLM verdict ----------------
+    def _fallback_verdict(self, asking_price: float, estimated_price: float, location_score: float, price_ratio: float) -> Dict:
+        # Basic rule-based evaluation (same as original) for resilience
+        if estimated_price <= 0 or asking_price <= 0:
+            verdict = "Fair"
+            confidence = 0.4
+        elif price_ratio <= 0.85:
+            verdict = "Good Deal"
+            confidence = 0.8
+        elif price_ratio <= 1.15:
+            verdict = "Fair"
+            confidence = 0.7
+        else:
+            verdict = "Overpriced"
+            confidence = 0.8
+        if location_score > 0.8:
+            confidence += 0.1
+        elif location_score < 0.4:
+            confidence -= 0.1
+        confidence = max(0.1, min(0.95, confidence))
+        why = self._generate_explanation(asking_price, estimated_price, location_score, verdict, price_ratio)
+        return {"verdict": verdict, "why": why, "confidence": round(confidence, 2)}
+
+    def _parse_verdict_response(self, text: str, fallback: Dict) -> Dict:
+        try:
+            start = text.find('{')
+            end = text.rfind('}')
+            if start == -1 or end == -1:
+                return fallback
+            data = json.loads(text[start:end+1])
+            verdict = data.get('verdict', fallback['verdict'])
+            why = data.get('why', fallback['why'])
+            confidence = data.get('confidence', fallback['confidence'])
+            try:
+                confidence = float(confidence)
+            except Exception:
+                confidence = fallback['confidence']
+            confidence = max(0.1, min(0.95, confidence))
+            result = {"verdict": verdict, "why": why, "confidence": round(confidence, 2)}
+            # Optional extended fields
+            if isinstance(data.get('key_metrics'), dict):
+                result['key_metrics'] = data['key_metrics']
+            if isinstance(data.get('risk_flags'), list):
+                result['risk_flags'] = data['risk_flags'][:6]
+            if isinstance(data.get('recommendation'), str):
+                result['recommendation'] = data['recommendation'][:500]
+            return result
+        except Exception:
+            return fallback
     
     def _build_land_analysis_prompt(self, features: Dict, location_analysis: Dict, 
                                    asking_price: float, estimated_price: float) -> str:

@@ -7,8 +7,11 @@ from app.agents.price_agent import PriceAgent
 from app.agents.location_agent import LocationAgent
 from app.agents.deal_agent import DealAgent
 from app.agents.security_agent import SecurityAgent
+from app.core.config import settings
 from bson import ObjectId
 import logging
+from app.retrieval import store as retrieval_store
+from app.nlp.pipeline import nlp_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +40,20 @@ class PropertyResponse(BaseModel):
     price_per_sqft: Optional[float] = None
     plan: Optional[str] = None
     analyses_remaining: Optional[int] = None
+    # AI enriched fields
+    location_factor: Optional[float] = None
+    location_rationale: Optional[str] = None
+    llm_explanation: Optional[str] = None
+    deal_key_metrics: Optional[Dict[str, Any]] = None
+    deal_risk_flags: Optional[List[str]] = None
+    deal_recommendation: Optional[str] = None
+    market_low: Optional[float] = None
+    market_high: Optional[float] = None
+    market_range_rationale: Optional[str] = None
+    # NLP & retrieval enrichment
+    entities: Optional[List[Dict[str, str]]] = None
+    query_summary: Optional[str] = None
+    retrieved_context: Optional[List[Dict[str, Any]]] = None
 
 class QueryHistory(BaseModel):
     id: str
@@ -99,7 +116,19 @@ async def analyze_property(
             deal_verdict=analysis_result['deal_verdict'],
             why=analysis_result['why'],
             confidence=analysis_result['confidence'],
-            provenance=analysis_result['provenance']
+            provenance=analysis_result['provenance'],
+            market_low=analysis_result.get('market_low'),
+            market_high=analysis_result.get('market_high'),
+            market_range_rationale=analysis_result.get('market_range_rationale'),
+            location_factor=analysis_result.get('location_factor'),
+            location_rationale=analysis_result.get('location_rationale'),
+            llm_explanation=analysis_result.get('llm_explanation'),
+            deal_key_metrics=analysis_result.get('deal_key_metrics'),
+            deal_risk_flags=analysis_result.get('deal_risk_flags'),
+            deal_recommendation=analysis_result.get('deal_recommendation'),
+            entities=analysis_result.get('entities'),
+            query_summary=analysis_result.get('query_summary'),
+            retrieved_context=analysis_result.get('retrieved_context')
         )
         
         await db_response.insert()
@@ -129,7 +158,19 @@ async def analyze_property(
             currency=filtered_result.get('currency', 'LKR'),
             price_per_sqft=filtered_result.get('price_per_sqft'),
             plan=plan,
-            analyses_remaining=remaining
+            analyses_remaining=remaining,
+            location_factor=filtered_result.get('location_factor'),
+            location_rationale=filtered_result.get('location_rationale'),
+            llm_explanation=filtered_result.get('llm_explanation'),
+            deal_key_metrics=filtered_result.get('deal_key_metrics'),
+            deal_risk_flags=filtered_result.get('deal_risk_flags'),
+            deal_recommendation=filtered_result.get('deal_recommendation'),
+            market_low=filtered_result.get('market_low'),
+            market_high=filtered_result.get('market_high'),
+            market_range_rationale=filtered_result.get('market_range_rationale'),
+            entities=filtered_result.get('entities'),
+            query_summary=filtered_result.get('query_summary'),
+            retrieved_context=filtered_result.get('retrieved_context')
         )
         
     except HTTPException:
@@ -174,6 +215,17 @@ async def get_query_history(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error fetching query history"
         )
+
+@router.get("/gemini/health")
+async def gemini_health():
+    """Lightweight health check for Gemini-driven analysis."""
+    return {
+        'strict_mode': settings.strict_gemini,
+        'price_agent_llm': bool(price_agent.llm),
+        'deal_agent_llm': bool(deal_agent.llm),
+        'location_agent_llm': bool(location_agent.llm),
+        'api_key_loaded': bool(settings.gemini_api_key),
+    }
 
 @router.delete("/history/{query_id}")
 async def delete_query_history(
@@ -254,6 +306,12 @@ async def get_query_details(
             price_per_sqft=None,
             plan=plan,
             analyses_remaining=remaining
+            ,market_low=None
+            ,market_high=None
+            ,market_range_rationale=None
+            ,entities=response.entities
+            ,query_summary=response.query_summary
+            ,retrieved_context=response.retrieved_context
         )
     except HTTPException:
         raise
@@ -265,27 +323,18 @@ async def get_query_details(
         )
 
 async def _run_analysis_pipeline(features: Dict[str, Any], query_text: str) -> Dict[str, Any]:
-    """Run the complete AI analysis pipeline including land details"""
+    """Run the complete AI analysis pipeline including land details (AI-first)."""
     try:
-        # 1. Price estimation (heuristic)
+        # 1. Retrieval augmentation (lexical lightweight)
+        retrieved = retrieval_store.search(query_text, top_k=4)
+
+        # 2. AI-first price estimation (internal fallback if LLM unavailable)
         price_result = price_agent.estimate_price(features)
         estimated_price = price_result['estimated_price']
         price_per_sqft = price_result.get('price_per_sqft', 0)
         provenance: List[Dict[str, Any]] = []
-        
-        # 1b. Try Gemini-backed estimate if available; blend conservatively
-        llm_price = deal_agent.llm_estimate_market_value(features)
-        if llm_price and isinstance(llm_price, dict) and llm_price.get('estimated_price', 0) > 0:
-            # Blend: average weighted by heuristic confidence
-            heuristic_conf = price_result.get('confidence', 0.6)
-            blended = (heuristic_conf * estimated_price) + ((1 - heuristic_conf) * llm_price['estimated_price'])
-            estimated_price = round(blended, 2)
-            if features.get('area'):
-                price_per_sqft = round(estimated_price / (features.get('area') or 1), 2)
-            # Merge provenance
-            provenance.extend(llm_price.get('provenance', []))
-        
-        # 2. Location analysis
+
+        # 3. Location analysis (AI-first)
         location_result = location_agent.analyze_location(
             features.get('lat'),
             features.get('lon'),
@@ -294,42 +343,80 @@ async def _run_analysis_pipeline(features: Dict[str, Any], query_text: str) -> D
         )
         location_score = location_result['score']
         provenance.extend(location_result.get('provenance', []))
-        
-        # 3. Deal evaluation
+
+        # 4. Deal evaluation (AI-first)
         asking_price = features.get('asking_price', 0)
         deal_result = deal_agent.evaluate_deal(asking_price, estimated_price, location_score)
-        
-        # 4. Land details analysis using Gemini AI
+
+        # 5. Land details analysis using Gemini AI (fallback inside if not available)
         land_details = deal_agent.analyze_land_details(
             features, location_result, asking_price, estimated_price
         )
-        
-        # 5. Combine results
+
+        # 6. NLP enrichment (entities + summary from assembled rationale text)
+        combined_text_blocks: List[str] = []
+        if deal_result.get('why'):
+            combined_text_blocks.append(deal_result['why'])
+        if price_result.get('location_rationale'):
+            combined_text_blocks.append(price_result['location_rationale'])
+        if deal_result.get('recommendation'):
+            combined_text_blocks.append(deal_result['recommendation'])
+        if land_details and isinstance(land_details, dict):
+            land_analysis_text = land_details.get('land_analysis') or ''
+            if land_analysis_text:
+                combined_text_blocks.append(land_analysis_text)
+        aggregated_text = "\n".join(combined_text_blocks).strip()
+        entities = nlp_pipeline.extract_entities(aggregated_text) if aggregated_text else []
+        query_summary = nlp_pipeline.summarize(aggregated_text) if aggregated_text else ''
+
         result = {
             'estimated_price': estimated_price,
             'location_score': location_score,
             'deal_verdict': deal_result['verdict'],
             'why': deal_result['why'],
-            'confidence': min(price_result['confidence'], deal_result['confidence']),
+            'confidence': min(price_result.get('confidence', 0.6), deal_result.get('confidence', 0.6)),
             'provenance': provenance,
             'land_details': land_details,
             'currency': 'LKR',
-            'price_per_sqft': price_per_sqft
+            'price_per_sqft': price_per_sqft,
+            'location_factor': price_result.get('location_factor'),
+            'location_rationale': price_result.get('location_rationale'),
+            'deal_key_metrics': deal_result.get('key_metrics'),
+            'deal_risk_flags': deal_result.get('risk_flags'),
+            'deal_recommendation': deal_result.get('recommendation'),
+            'entities': entities,
+            'query_summary': query_summary,
+            'retrieved_context': retrieved
         }
-        
-        # 6. Try to get LLM explanation if available
+
+        # Include market range from price agent if present or synthesize fallback
+        market_low = price_result.get('market_low')
+        market_high = price_result.get('market_high')
+        if market_low and market_high:
+            # Ensure ordering
+            if market_low > market_high:
+                market_low, market_high = market_high, market_low
+            result['market_low'] = round(float(market_low), 2)
+            result['market_high'] = round(float(market_high), 2)
+            result['market_range_rationale'] = price_result.get('market_range_rationale')
+        else:
+            # Fallback ±10%
+            result['market_low'] = round(estimated_price * 0.9, 2)
+            result['market_high'] = round(estimated_price * 1.1, 2)
+            result['market_range_rationale'] = 'Fallback ±10% band due to missing explicit range'
+
+        # Optional deeper LLM explanation (kept separate so UI can show it)
         if asking_price > 0 and estimated_price > 0:
             llm_explanation = deal_agent.llm_explain(
                 asking_price, estimated_price, location_score, features, location_result
             )
             if llm_explanation:
                 result['llm_explanation'] = llm_explanation
-        
+        # Successful pipeline completion
         return result
-        
+
     except Exception as e:
         logger.error(f"Error in analysis pipeline: {e}")
-        # Return fallback result
         return {
             'estimated_price': features.get('asking_price', 0),
             'location_score': 0.5,

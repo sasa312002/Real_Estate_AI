@@ -1,34 +1,73 @@
 import logging
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 import random
 import math
+import json
+import google.generativeai as genai
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 class LocationAgent:
     def __init__(self):
-        self.location_data = {}  # Placeholder for real location database
-        
+        self.location_data = {}
+        self.llm: Optional[genai.GenerativeModel] = None
+        self._initialize_llm()
+
+    def _initialize_llm(self):
+        try:
+            if settings.gemini_api_key:
+                genai.configure(api_key=settings.gemini_api_key)
+                self.llm = genai.GenerativeModel('gemini-pro')
+                logger.info("LocationAgent: Gemini model initialized")
+            else:
+                logger.warning("LocationAgent: No GEMINI_API_KEY, using heuristic location scoring")
+        except Exception as e:
+            logger.error(f"LocationAgent: Failed to init Gemini: {e}")
+            self.llm = None
+
     def analyze_location(self, lat: float, lon: float, city: str = None, district: str = None) -> Dict:
-        """
-        Analyze location based on coordinates, city, and district for Sri Lanka.
+        """Dynamic location analysis with Gemini fallback.
+
         Returns: {score, bullets, summary, provenance}
         """
         try:
-            # Mock location analysis (replace with real API calls)
-            location_score = self._calculate_location_score(lat, lon, city, district)
+            heuristic_score = self._calculate_location_score(lat, lon, city, district)
+
+            from app.core.config import settings
+            if self.llm:
+                try:
+                    prompt = self._build_location_prompt(lat, lon, city, district, heuristic_score)
+                    response = self.llm.generate_content(prompt)
+                    raw_text = getattr(response, 'text', '')
+                    from app.core.config import settings as _settings
+                    if getattr(_settings, 'gemini_debug', False):
+                        logger.info(f"LocationAgent: Raw LLM response (truncated 400 chars): {raw_text[:400]}")
+                    parsed = self._parse_location_response(raw_text, heuristic_score, lat, lon, city, district)
+                    if parsed:
+                        return parsed
+                except Exception as e:
+                    logger.error(f"LocationAgent: LLM analysis failed, using heuristic. Error: {e}")
+            elif settings.strict_gemini:
+                return {
+                    'score': 0.0,
+                    'bullets': ['Gemini required but not initialized (strict mode)'],
+                    'summary': 'Location analysis unavailable in strict mode',
+                    'provenance': [],
+                    'error': 'NO_LLM_STRICT_MODE'
+                }
+
+            # Fallback to heuristic (non-strict)
             bullets = self._generate_location_bullets(lat, lon, city, district)
-            summary = self._generate_location_summary(location_score, city, district)
+            summary = self._generate_location_summary(heuristic_score, city, district)
             provenance = self._generate_provenance(lat, lon, city, district)
-            
             return {
-                "score": location_score,
-                "bullets": bullets,
-                "summary": summary,
-                "provenance": provenance
+                'score': heuristic_score,
+                'bullets': bullets,
+                'summary': summary,
+                'provenance': provenance
             }
-            
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             logger.error(f"Error in location analysis: {e}")
             return {
                 "score": 0.5,
@@ -39,85 +78,14 @@ class LocationAgent:
             }
     
     def _calculate_location_score(self, lat: float, lon: float, city: str = None, district: str = None) -> float:
-        """Calculate location score (0-1) based on various Sri Lankan factors"""
-        score = 0.5  # Base score
-        
-        # City-based scoring for Sri Lanka
-        if city:
-            city_scores = {
-                # Major Cities
-                'Colombo': 0.95,
-                'Kandy': 0.90,
-                'Galle': 0.85,
-                'Jaffna': 0.80,
-                'Negombo': 0.85,
-                'Matara': 0.80,
-                'Anuradhapura': 0.75,
-                'Polonnaruwa': 0.70,
-                'Trincomalee': 0.80,
-                'Batticaloa': 0.75,
-                'Ratnapura': 0.70,
-                'Kurunegala': 0.75,
-                'Badulla': 0.70,
-                'Monaragala': 0.65,
-                'Vavuniya': 0.70,
-                'Mullaitivu': 0.65,
-                'Kilinochchi': 0.65,
-                'Ampara': 0.70,
-                'Puttalam': 0.75,
-                'Hambantota': 0.80,
-                'Kalutara': 0.80,
-                'Gampaha': 0.85,
-                'Nuwara Eliya': 0.80,
-                'Kegalle': 0.75,
-                'Unknown': 0.5
-            }
-            score = city_scores.get(city, 0.5)
-        
-        # District-based scoring for Colombo
-        if city == 'Colombo' and district:
-            district_scores = {
-                'Colombo 1': 0.98,  # Fort area - prime business district
-                'Colombo 2': 0.97,  # Slave Island - developing area
-                'Colombo 3': 0.96,  # Kollupitiya - upscale residential
-                'Colombo 4': 0.95,  # Bambalapitiya - prime residential
-                'Colombo 5': 0.94,  # Havelock Town - upscale area
-                'Colombo 6': 0.93,  # Wellawatte - beach area
-                'Colombo 7': 0.97,  # Cinnamon Gardens - most prestigious
-                'Colombo 8': 0.92,  # Borella - central residential
-                'Colombo 9': 0.91,  # Dematagoda - developing area
-                'Colombo 10': 0.90, # Maradana - central area
-                'Colombo 11': 0.89, # Pettah - commercial area
-                'Colombo 12': 0.88, # Peliyagoda - developing area
-                'Colombo 13': 0.87, # Wattala - suburban area
-                'Colombo 14': 0.86, # Grandpass - developing area
-                'Colombo 15': 0.85  # Modara - port area
-            }
-            if district in district_scores:
-                score = district_scores[district]
-        
-        # Special area scoring for other cities
-        if city == 'Kandy' and district:
-            kandy_districts = {
-                'Peradeniya': 0.92,  # University area
-                'Katugastota': 0.88, # Commercial area
-                'Mahaiyawa': 0.85,   # Residential area
-                'Asgiriya': 0.90,    # Temple area
-                'Malwatte': 0.89     # Temple area
-            }
-            if district in kandy_districts:
-                score = kandy_districts[district]
-        
-        if city == 'Galle' and district:
-            galle_districts = {
-                'Galle Fort': 0.95,      # UNESCO heritage site
-                'Unawatuna': 0.90,       # Beach area
-                'Hikkaduwa': 0.88,       # Beach area
-                'Mirissa': 0.92,          # Beach area
-                'Weligama': 0.89          # Beach area
-            }
-            if district in galle_districts:
-                score = galle_districts[district]
+        """Calculate a lightweight heuristic score (0-1) without hardcoded city tables.
+
+        We intentionally avoid fixed per-city constants; instead we use
+        geographic proximity to a few economic/tourism hubs plus a neutral
+        base score. The refined score (if LLM available) will be produced by
+        Gemini and blended later.
+        """
+        score = 0.5  # Neutral baseline
         
         # Coordinate-based adjustments for Sri Lanka
         if lat and lon:
@@ -144,124 +112,30 @@ class LocationAgent:
         return max(0.0, min(1.0, score))
     
     def _generate_location_bullets(self, lat: float, lon: float, city: str = None, district: str = None) -> List[str]:
-        """Generate location-specific bullet points for Sri Lanka"""
-        bullets = []
-        
+        """Generate generic fallback bullet points (no per-city hardcoding)."""
+        bullets: List[str] = []
         if city:
-            city_bullets = {
-                'Colombo': [
-                    "Capital city with excellent infrastructure",
-                    "Close to Bandaranaike International Airport",
-                    "Major business and financial hub",
-                    "Good public transportation (buses, trains)",
-                    "International schools and universities",
-                    "Modern shopping malls and restaurants",
-                    "Healthcare facilities and hospitals",
-                    "Port city with trade opportunities"
-                ],
-                'Kandy': [
-                    "Cultural and historical significance",
-                    "Pleasant climate and scenic beauty",
-                    "Major tourist destination",
-                    "Peradeniya University area",
-                    "Temple of the Tooth Relic",
-                    "Botanical Gardens",
-                    "Tea plantations nearby",
-                    "Cooler climate than coastal areas"
-                ],
-                'Galle': [
-                    "Coastal city with beautiful beaches",
-                    "UNESCO World Heritage site (Galle Fort)",
-                    "Tourism and hospitality focus",
-                    "Relaxed lifestyle",
-                    "Historical Portuguese and Dutch influence",
-                    "Good for retirement and tourism",
-                    "Fishing industry",
-                    "Close to other beach destinations"
-                ],
-                'Jaffna': [
-                    "Northern cultural center",
-                    "Growing economic opportunities",
-                    "Unique cultural heritage",
-                    "Development potential",
-                    "University of Jaffna",
-                    "Historical significance",
-                    "Agricultural land",
-                    "Peaceful environment"
-                ],
-                'Negombo': [
-                    "Beach city near airport",
-                    "Tourist-friendly area",
-                    "Fishing industry",
-                    "Good for expats and tourists",
-                    "Historical churches",
-                    "Lagoon and beach activities",
-                    "Growing real estate market",
-                    "Easy access to Colombo"
-                ],
-                'Matara': [
-                    "Southern coastal city",
-                    "Beautiful beaches",
-                    "Historical significance",
-                    "University of Ruhuna",
-                    "Growing development",
-                    "Good investment potential",
-                    "Tourist attractions",
-                    "Peaceful lifestyle"
-                ],
-                'Anuradhapura': [
-                    "Ancient capital of Sri Lanka",
-                    "UNESCO World Heritage site",
-                    "Buddhist pilgrimage site",
-                    "Historical significance",
-                    "Agricultural land",
-                    "Growing tourism",
-                    "Cultural heritage",
-                    "Investment potential"
-                ]
-            }
-            bullets = city_bullets.get(city, [
-                "Developing area with potential",
-                "Local amenities available",
-                "Growing community",
-                "Investment opportunities"
-            ])
-        
-        # Add district-specific bullets for Colombo
-        if city == 'Colombo' and district:
-            district_bullets = {
-                'Colombo 1': [
-                    "Prime business district",
-                    "Financial institutions",
-                    "Government offices",
-                    "High commercial value"
-                ],
-                'Colombo 3': [
-                    "Upscale residential area",
-                    "Close to beach",
-                    "International schools",
-                    "High-end restaurants"
-                ],
-                'Colombo 7': [
-                    "Most prestigious area",
-                    "Diplomatic missions",
-                    "Luxury residences",
-                    "Exclusive clubs"
-                ],
-                'Colombo 5': [
-                    "Upscale residential",
-                    "Good schools",
-                    "Shopping areas",
-                    "Family-friendly"
-                ]
-            }
-            if district in district_bullets:
-                bullets.extend(district_bullets[district])
-        
-        # Add general location factors
+            bullets.append(f"City: {city}")
+        if district:
+            bullets.append(f"District: {district}")
+        # Distance heuristics to key hubs for context
+        def dist(a_lat, a_lon):
+            if not (lat and lon):
+                return None
+            return math.sqrt((lat - a_lat)**2 + (lon - a_lon)**2)
+        hubs = {
+            'Colombo CBD': (6.9271, 79.8612),
+            'Kandy Cultural Hub': (7.2906, 80.6337),
+            'Galle Coastal Hub': (6.0535, 80.2210)
+        }
+        for name, (h_lat, h_lon) in hubs.items():
+            d = dist(h_lat, h_lon)
+            if d is not None:
+                km_est = round(d * 111, 1)  # very rough conversion degrees->km
+                bullets.append(f"Approx {km_est} km from {name}")
         if lat and lon:
             bullets.append(f"Coordinates: {lat:.4f}, {lon:.4f}")
-        
+        bullets.append("Score derived from dynamic LLM + geospatial heuristic")
         return bullets
     
     def _generate_location_summary(self, location_score: float, city: str = None, district: str = None) -> str:
@@ -328,3 +202,76 @@ class LocationAgent:
         })
         
         return provenance
+
+    # ---------------- Gemini Helpers ----------------
+    def _build_location_prompt(self, lat: float, lon: float, city: str, district: str, heuristic_score: float) -> str:
+                return f"""
+You are a Sri Lankan real estate location analyst. OUTPUT MUST BE SENSITIVE TO LOCATION CHANGES.
+If lat/lon change meaningfully, the score must change accordingly. Use only widely known,
+verifiable context (no speculative unannounced projects).
+
+Inputs JSON:
+{{
+    "lat": {lat},
+    "lon": {lon},
+    "city": "{city}",
+    "district": "{district}",
+    "baseline_score": {heuristic_score}
+}}
+
+Return STRICT JSON ONLY with keys:
+{{
+    "score": number,                          // 0-1 refined score (not equal to baseline unless necessary)
+    "bullets": ["..."],                      // 6-10 concise, factual location factors
+    "summary": "one paragraph summary",
+    "location_drivers": ["infrastructure", "tourism", "economic", "proximity", "amenities"],
+    "provenance": [                           // optional up to 5
+        {{"doc_id": "string", "source": "string", "snippet": "string", "link": "url", "confidence": 0.0}}
+    ]
+}}
+Rules:
+1. No text outside JSON.
+2. If unsure of a driver, omit it.
+3. Avoid hallucinations about unpublished future developments.
+4. Score justification must correlate with bullets.
+5. If coordinates missing, keep score near baseline.
+"""
+
+    def _parse_location_response(self, text: str, heuristic_score: float, lat: float, lon: float, city: str, district: str) -> Optional[Dict]:
+        try:
+            start = text.find('{')
+            end = text.rfind('}')
+            if start == -1 or end == -1:
+                return None
+            data = json.loads(text[start:end+1])
+            if 'score' not in data:
+                data['score'] = heuristic_score
+            # Blend score with heuristic to avoid wild swings
+            model_score = float(data.get('score', heuristic_score))
+            blended = (0.6 * heuristic_score) + (0.4 * model_score)
+            score = max(0.0, min(1.0, blended))
+            bullets = data.get('bullets') or self._generate_location_bullets(lat, lon, city, district)
+            if len(bullets) < 3:
+                bullets.extend(self._generate_location_bullets(lat, lon, city, district))
+            summary = data.get('summary') or self._generate_location_summary(score, city, district)
+            provenance = data.get('provenance') or self._generate_provenance(lat, lon, city, district)
+            # Sanitize provenance minimal fields
+            norm_prov = []
+            for p in provenance[:6]:
+                if isinstance(p, dict):
+                    norm_prov.append({
+                        'doc_id': p.get('doc_id') or p.get('title') or 'Source',
+                        'source': p.get('source') or 'Model',
+                        'snippet': p.get('snippet', '')[:280],
+                        'link': p.get('link') or p.get('url') or '',
+                        'confidence': p.get('confidence', 0.7)
+                    })
+            return {
+                'score': score,
+                'bullets': bullets[:10],
+                'summary': summary,
+                'provenance': norm_prov or self._generate_provenance(lat, lon, city, district)
+            }
+        except Exception as e:
+            logger.debug(f"LocationAgent: Parse failure: {e}")
+            return None

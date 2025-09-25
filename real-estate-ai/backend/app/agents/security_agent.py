@@ -17,7 +17,8 @@ class SecurityAgent:
         # PII patterns
         self.pii_patterns = [
             r'\b\d{3}-\d{2}-\d{4}\b',  # SSN
-            r'\b\d{10,11}\b',  # Phone numbers
+            r'(?:\b\d{10,11}\b)',  # Plain 10-11 digit numbers
+            r'(?:\b\d{3}[-\s]\d{3}[-\s]\d{4}\b)',  # Phone numbers with separators (e.g., 123-456-7890 or 123 456 7890)
             r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',  # Email
             r'\b\d{1,5}\s+[A-Za-z\s]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr)\b',  # Address
         ]
@@ -70,7 +71,10 @@ class SecurityAgent:
             
             # Limit length
             if len(sanitized) > 10000:
-                sanitized = sanitized[:10000] + "... [TRUNCATED]"
+                # Ensure final length (including marker) <= 10000
+                marker = "... [TRUNCATED]"
+                allowed = 10000 - len(marker)
+                sanitized = sanitized[:allowed] + marker
             
             return sanitized
             
@@ -183,15 +187,21 @@ class SecurityAgent:
                 if field not in features or features[field] is None:
                     errors.append(f"Missing required field: {field}")
             
-            # City validation (Sri Lanka cities only)
+            # City validation (relaxed: allow unknown if coordinates provided)
             city_raw = features.get('city')
             if city_raw:
-                city_clean = self.sanitize_input(str(city_raw)).strip()
+                city_no_script = re.sub(r'<script.*?>.*?</script>', '', str(city_raw), flags=re.IGNORECASE | re.DOTALL)
+                city_plain = re.sub(r'<[^>]+>', '', city_no_script)
+                city_clean = self.sanitize_input(city_plain).strip()
                 city_key = city_clean.lower()
-                if city_key not in self.sri_lanka_cities:
-                    errors.append("Invalid city: not recognized as a Sri Lankan city")
-                else:
+                if city_key in self.sri_lanka_cities:
                     sanitized['city'] = city_clean.title()
+                else:
+                    # If lat/lon present we accept the city as-is (reverse-geocoded or suburb name)
+                    if ('lat' in features and features.get('lat') not in [None, '']) and ('lon' in features and features.get('lon') not in [None, '']):
+                        sanitized['city'] = city_clean.title()
+                    else:
+                        errors.append("Invalid city: not recognized and no coordinates supplied for context")
             
             # Validate numeric fields
             numeric_fields = ['lat', 'lon', 'beds', 'baths', 'area', 'year_built', 'asking_price']

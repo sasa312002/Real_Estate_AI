@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     
     # Gemini AI
     gemini_api_key: str = ""
+    strict_gemini: bool = False  # If true, disable heuristic fallbacks and require Gemini
+    gemini_debug: bool = False   # Extra logging for Gemini parsing/fallback behavior
     
     # CORS - Use string type to avoid JSON parsing
     allow_origins: str = "http://localhost:3000"

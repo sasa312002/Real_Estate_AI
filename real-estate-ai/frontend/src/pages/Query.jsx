@@ -28,43 +28,8 @@ function Query() {
   })
   
   const [selectedLocation, setSelectedLocation] = useState(null)
-  const sriLankaCities = [
-    'Colombo','Dehiwala','Mount Lavinia','Moratuwa','Kesbewa','Maharagama','Kotte','Kaduwela','Homagama','Pannipitiya','Padukka','Battaramulla','Ragama','Ja-Ela','Negombo','Katunayake','Seeduwa','Wattala','Kelaniya','Kiribathgoda','Pitipana',
-    'Kandy','Gampola','Nawalapitiya','Katugastota','Peradeniya','Matale','Dambulla','Nuwara Eliya','Hatton','Talawakele','Bandarawela','Haputale',
-    'Galle','Matara','Weligama','Hambantota','Tangalle','Ambalangoda','Hikkaduwa','Hakmana','Tissamaharama',
-    'Jaffna','Mannar','Kilinochchi','Vavuniya','Point Pedro','Chavakachcheri','Mulaitivu',
-    'Trincomalee','Batticaloa','Kalmunai','Ampara','Kattankudy','Eravur','Valachchenai','Kalkudah','Sainthamaruthu',
-    'Kurunegala','Kuliyapitiya','Narammala','Pannala','Puttalam','Chilaw','Wennappuwa','Anamaduwa','Maho',
-    'Anuradhapura','Polonnaruwa','Hingurakgoda','Medirigiriya',
-    'Badulla','Monaragala','Bibile','Welimada',
-    'Ratnapura','Balangoda','Kegalle','Mawanella'
-  ]
-  const [cityQuery, setCityQuery] = useState('')
-  const [citySuggestions, setCitySuggestions] = useState([])
-  const [showCityDropdown, setShowCityDropdown] = useState(false)
-
-  const updateCitySuggestions = (value) => {
-    const v = value.trim().toLowerCase()
-    if (!v) { setCitySuggestions([]); return }
-    const filtered = sriLankaCities.filter(c => c.toLowerCase().includes(v)).slice(0,8)
-    setCitySuggestions(filtered)
-  }
-
-  const handleCityInput = (value) => {
-    setCityQuery(value)
-    updateCitySuggestions(value)
-    handleInputChange('city', value)
-    setShowCityDropdown(true)
-  }
-
-  const selectCity = (city) => {
-    handleInputChange('city', city)
-    setCityQuery(city)
-    setCitySuggestions([])
-    setShowCityDropdown(false)
-  }
-
-  const cityValid = !formData.features.city || sriLankaCities.map(c=>c.toLowerCase()).includes(formData.features.city.toLowerCase())
+  // City now inferred exclusively from map; we accept any non-empty reverse geocoded value
+  const cityValid = !!formData.features.city
 
   const handleInputChange = (field, value) => {
     if (field === 'query') {
@@ -87,6 +52,11 @@ function Query() {
         lon: lng.toString()
       }
     }))
+  }
+
+  const handleInferredCity = (inferred) => {
+    if (!inferred) return
+    handleInputChange('city', inferred)
   }
 
   const handleSubmit = async (e) => {
@@ -196,51 +166,22 @@ function Query() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label htmlFor="city" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                   <MapPin className="inline w-5 h-5 mr-2 text-blue-600" />
-                  City *
+                  City (Auto-Inferred from Map) *
                 </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    id="city"
-                    required
-                    className={`w-full px-4 py-3 border ${cityValid ? 'border-gray-300 dark:border-gray-600' : 'border-red-500 dark:border-red-500'} dark:bg-gray-700 bg-white text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors pr-10`}
-                    placeholder="Start typing a Sri Lankan city..."
-                    value={cityQuery || formData.features.city}
-                    onChange={(e) => handleCityInput(e.target.value)}
-                    onFocus={() => { if(citySuggestions.length>0) setShowCityDropdown(true) }}
-                    autoComplete="off"
-                  />
-                  {cityQuery && (
-                    <button
-                      type="button"
-                      className="absolute top-1/2 -translate-y-1/2 right-3 text-gray-400 hover:text-gray-600"
-                      onClick={() => { setCityQuery(''); selectCity(''); }}
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                  {showCityDropdown && citySuggestions.length > 0 && (
-                    <ul className="absolute z-20 mt-1 w-full max-h-56 overflow-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg text-sm">
-                      {citySuggestions.map(c => (
-                        <li
-                          key={c}
-                          className="px-3 py-2 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-700 dark:text-gray-200"
-                          onClick={() => selectCity(c)}
-                        >
-                          {c}
-                        </li>
-                      ))}
-                      {citySuggestions.length === 0 && (
-                        <li className="px-3 py-2 text-gray-400 dark:text-gray-500">No matches</li>
-                      )}
-                    </ul>
-                  )}
-                  {!cityValid && (
-                    <p className="mt-2 text-xs text-red-600 dark:text-red-400 font-medium">Enter a valid Sri Lankan city from the suggested list.</p>
-                  )}
-                </div>
+                <input
+                  type="text"
+                  readOnly
+                  required
+                  className={`w-full px-4 py-3 border ${cityValid ? 'border-gray-300 dark:border-gray-600' : 'border-red-500 dark:border-red-500'} dark:bg-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg focus:outline-none`}
+                  value={formData.features.city}
+                  placeholder="Select a location on the map to set city"
+                />
+                {!formData.features.city && (
+                  <p className="mt-2 text-xs text-blue-600 dark:text-blue-400">Click on the map to set the city automatically.</p>
+                )}
+                {/* Removed strict whitelist warning; any inferred city is accepted */}
               </div>
 
               <div>
@@ -345,6 +286,7 @@ function Query() {
               <LocationPicker
                 selectedLocation={selectedLocation}
                 onLocationChange={handleLocationChange}
+                onInferredCity={handleInferredCity}
                 city={formData.features.city}
                 className="w-full"
               />
@@ -366,7 +308,7 @@ function Query() {
 
             <button
               type="submit"
-              disabled={loading || !formData.features.city || !formData.features.asking_price || !cityValid}
+              disabled={loading || !formData.features.city || !formData.features.asking_price}
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
             >
               {loading ? (

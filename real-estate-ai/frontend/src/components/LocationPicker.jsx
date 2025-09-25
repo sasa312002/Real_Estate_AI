@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { MapContainer, TileLayer, Marker, useMapEvents, Popup } from 'react-leaflet'
+import React, { useState, useEffect, useRef } from 'react'
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -37,118 +37,113 @@ function LocationMarker({ position, onLocationSelect }) {
   ) : null
 }
 
-function LocationPicker({ selectedLocation, onLocationChange, city, className = '' }) {
-  const [mapCenter, setMapCenter] = useState([6.9271, 79.8612]) // Default to Colombo
-  const [zoom, setZoom] = useState(13)
+// Recenter button component
+function RecenterButton({ position }) {
+  const map = useMap()
+  if (!position) return null
+  return (
+    <button
+      type="button"
+      aria-label="Recenter map to selected location"
+      onClick={() => map.setView(position, map.getZoom(), { animate: true })}
+      className="absolute z-[1000] top-2 right-2 bg-white dark:bg-gray-800 shadow-md rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600"
+    >
+      Recenter
+    </button>
+  )
+}
 
-  // Extended Sri Lanka city coordinates (approximate)
-  const cityCoordinates = {
-    // Western Province & Metro
-    'colombo': [6.9271, 79.8612],
-    'dehiwala': [6.8402, 79.8712],
-    'mount lavinia': [6.8402, 79.8712],
-    'moratuwa': [6.7730, 79.8816],
-    'kesbewa': [6.7844, 79.9660],
-    'maharagama': [6.8480, 79.9288],
-    'kotte': [6.9022, 79.9090],
-    'kaduwela': [6.9333, 79.9833],
-    'homagama': [6.8432, 80.0020],
-    'pannipitiya': [6.8480, 79.9410],
-    'battaramulla': [6.9096, 79.9220],
-    'ragama': [7.0244, 79.9217],
-    'ja-ela': [7.0744, 79.8910],
-    'jaela': [7.0744, 79.8910],
-    'wattala': [6.9909, 79.8808],
-    'negombo': [7.2083, 79.8358],
-    'katunayake': [7.1695, 79.8908],
-    'seeduwa': [7.1376, 79.8866],
-    'kelaniya': [6.9613, 79.9308],
-    'kiribathgoda': [6.9724, 79.9253],
-    // Central Province
-    'kandy': [7.2906, 80.6337],
-    'gampola': [7.1642, 80.5766],
-    'nawalapitiya': [7.0536, 80.5347],
-    'peradeniya': [7.2558, 80.5986],
-    'matale': [7.4659, 80.6234],
-    'dambulla': [7.8566, 80.6490],
-    'nuwara eliya': [6.9497, 80.7891],
-    'hatton': [6.8916, 80.5953],
-    'talawakele': [6.9373, 80.6613],
-    'bandarawela': [6.8298, 80.9870],
-    'haputale': [6.7667, 80.9667],
-    // Southern
-    'galle': [6.0535, 80.2210],
-    'matara': [5.9485, 80.5353],
-    'weligama': [5.9730, 80.4297],
-    'hambantota': [6.1241, 81.1185],
-    'tangalle': [6.0236, 80.7966],
-    'ambalangoda': [6.2350, 80.0536],
-    'hikkaduwa': [6.1400, 80.1000],
-    'tissamaharama': [6.2833, 81.2833],
-    // Northern
-    'jaffna': [9.6615, 80.0255],
-    'mannar': [8.9770, 79.9091],
-    'kilinochchi': [9.3961, 80.3982],
-    'vavuniya': [8.7510, 80.4970],
-    'point pedro': [9.8167, 80.2333],
-    'chavakachcheri': [9.6650, 80.1626],
-    'mulaitivu': [9.2671, 80.8149],
-    // Eastern
-    'trincomalee': [8.5874, 81.2152],
-    'batticaloa': [7.7102, 81.6924],
-    'kalmunai': [7.4159, 81.8164],
-    'ampara': [7.3018, 81.6747],
-    'kattankudy': [7.6737, 81.7337],
-    'eravur': [7.7782, 81.6145],
-    'valachchenai': [7.9347, 81.5612],
-    'kalkudah': [7.9208, 81.5614],
-    'sainthamaruthu': [7.3714, 81.8369],
-    // North Western
-    'kurunegala': [7.4863, 80.3647],
-    'kuliyapitiya': [7.4686, 80.0409],
-    'narammala': [7.4308, 80.2159],
-    'pannala': [7.3273, 79.9926],
-    'puttalam': [8.0362, 79.8283],
-    'chilaw': [7.5758, 79.7953],
-    'wennappuwa': [7.2792, 79.8589],
-    'anamaduwa': [7.8803, 80.0286],
-    'maho': [7.8228, 80.2776],
-    // North Central
-    'anuradhapura': [8.3114, 80.4037],
-    'polonnaruwa': [7.9403, 81.0188],
-    'hingurakgoda': [8.0402, 80.9517],
-    'medirigiriya': [8.1803, 81.0997],
-    // Uva
-    'badulla': [6.9934, 81.0550],
-    'monaragala': [6.8726, 81.3480],
-    'bibile': [7.1667, 81.2167],
-    'welimada': [6.9000, 80.9000],
-    // Sabaragamuwa
-    'ratnapura': [6.6828, 80.4126],
-    'balangoda': [6.6630, 80.7041],
-    'kegalle': [7.2513, 80.3464],
-    'mawanella': [7.2528, 80.4381]
+function LocationPicker({ selectedLocation, onLocationChange, city, onInferredCity, className = '' }) {
+  const [mapCenter, setMapCenter] = useState([6.9271, 79.8612]) // Initial default (Colombo)
+  const [zoom, setZoom] = useState(13)
+  const [cityLoading, setCityLoading] = useState(false)
+  const lastGeocodeRef = useRef({ lat: null, lon: null })
+  const [searchValue, setSearchValue] = useState('')
+  const searchAbortRef = useRef(null)
+
+  // Re-center on the selected location whenever it changes
+  useEffect(() => {
+    if (selectedLocation) {
+      setMapCenter(selectedLocation)
+    }
+  }, [selectedLocation])
+
+  const reverseGeocode = async (lat, lon) => {
+    if (!onInferredCity) return
+    // Prevent excessive lookups if user double-clicks near same point (< ~15m apart)
+    if (lastGeocodeRef.current.lat !== null) {
+      const dLat = lat - lastGeocodeRef.current.lat
+      const dLon = lon - lastGeocodeRef.current.lon
+      const dist = Math.sqrt(dLat * dLat + dLon * dLon) * 111000 // approx meters
+      if (dist < 15) return
+    }
+    lastGeocodeRef.current = { lat, lon }
+    try {
+      setCityLoading(true)
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 6000)
+      const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`, {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'real-estate-ai-demo/1.0 (educational use)'
+        },
+        signal: controller.signal
+      })
+      clearTimeout(timeout)
+      if (!resp.ok) throw new Error('geocode failed')
+      const data = await resp.json()
+      const addr = data.address || {}
+      const inferred = addr.city || addr.town || addr.village || addr.suburb || addr.county || ''
+      if (inferred) {
+        onInferredCity(inferred.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' '))
+      } else {
+        onInferredCity('')
+      }
+    } catch (err) {
+      // Silent failure; keep previous city
+      // Optionally could surface a toast here
+    } finally {
+      setCityLoading(false)
+    }
   }
 
-  // Update map center when city changes
-  useEffect(() => {
-    if (city) {
-      const cityKey = city.toLowerCase()
-      const coordinates = cityCoordinates[cityKey]
-      if (coordinates) {
-        setMapCenter(coordinates)
-        setZoom(13)
-        // Auto-select coordinates if user hasn't chosen a custom point yet
-        if (!selectedLocation) {
-          onLocationChange(coordinates[0], coordinates[1])
+  const handleLocationSelect = (lat, lng) => {
+    onLocationChange(lat, lng)
+    reverseGeocode(lat, lng)
+  }
+
+  const geocodeSearch = async (query) => {
+    if (!query || query.trim().length < 3) return
+    try {
+      if (searchAbortRef.current) searchAbortRef.current.abort()
+      const controller = new AbortController()
+      searchAbortRef.current = controller
+      const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&limit=5`, {
+        headers: { 'Accept': 'application/json', 'User-Agent': 'real-estate-ai-demo/1.0 (educational use)' },
+        signal: controller.signal
+      })
+      if (!resp.ok) return
+      const data = await resp.json()
+      if (Array.isArray(data) && data.length > 0) {
+        const best = data[0]
+        const lat = parseFloat(best.lat)
+        const lon = parseFloat(best.lon)
+        if (!isNaN(lat) && !isNaN(lon)) {
+          onLocationChange(lat, lon)
+          setMapCenter([lat, lon])
+          reverseGeocode(lat, lon)
         }
       }
+    } catch (_) {
+      // silent
     }
-  }, [city, selectedLocation])
+  }
 
-  const handleLocationSelect = (lat, lng) => {
-    const newLocation = [lat, lng]
-    onLocationChange(lat, lng)
+  const handleSearchKey = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      geocodeSearch(searchValue)
+    }
   }
 
   return (
@@ -177,7 +172,25 @@ function LocationPicker({ selectedLocation, onLocationChange, city, className = 
         )}
       </div>
       
-      <div className="rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 shadow-lg">
+      <div className="rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 shadow-lg relative">
+        {/* Search overlay */}
+        <div className="absolute top-2 left-2 z-[1000] flex space-x-2">
+          <input
+            type="text"
+            aria-label="Search location"
+            placeholder="Search place..."
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            onKeyDown={handleSearchKey}
+            className="text-xs px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+          <button
+            type="button"
+            onClick={() => geocodeSearch(searchValue)}
+            className="text-xs px-2 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+            disabled={!searchValue || searchValue.length < 3}
+          >Go</button>
+        </div>
         <MapContainer
           center={mapCenter}
           zoom={zoom}
@@ -193,19 +206,14 @@ function LocationPicker({ selectedLocation, onLocationChange, city, className = 
             position={selectedLocation}
             onLocationSelect={handleLocationSelect}
           />
-          {/* If user hasn't clicked yet, still show city center marker (already covered by selectedLocation after effect) */}
-          {!selectedLocation && city && cityCoordinates[city.toLowerCase()] && (
-            <Marker position={cityCoordinates[city.toLowerCase()]} icon={selectedLocationIcon}>
-              <Popup>
-                {city.charAt(0).toUpperCase() + city.slice(1)} (City Center)<br/>Click elsewhere to refine.
-              </Popup>
-            </Marker>
-          )}
+          <RecenterButton position={selectedLocation} />
+          {/* No fallback marker; user must click to set a location */}
         </MapContainer>
       </div>
       
-      <div className="mt-3 text-xs text-gray-500 text-center">
-        🖱️ Click anywhere on the map to select the property location
+      <div className="mt-3 text-xs text-gray-500 text-center space-y-1">
+        <div>🖱️ Click anywhere on the map to select the property location. {cityLoading && <span className="text-blue-600 dark:text-blue-400">Resolving city...</span>}</div>
+        <div className="text-[10px] text-gray-400">Reverse geocoding courtesy of Nominatim (OSM). Locations approximate; verify before decisions.</div>
       </div>
     </div>
   )
