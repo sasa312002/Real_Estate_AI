@@ -87,9 +87,15 @@ function AppContent() {
       <Route
         path="/plans"
         element={
-          <SidebarLayout showSidebar={false}>
-            <Plans />
-          </SidebarLayout>
+          isAuthenticated ? (
+            <SidebarLayout showSidebar={true}>
+              <div className="h-full">
+                <Plans />
+              </div>
+            </SidebarLayout>
+          ) : (
+            <Navigate to="/login" replace />
+          )
         }
       />
       
