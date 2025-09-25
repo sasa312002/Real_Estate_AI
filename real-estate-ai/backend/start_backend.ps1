@@ -9,4 +9,4 @@ Write-Host "Starting Real Estate AI Backend with MongoDB Atlas..." -ForegroundCo
 Write-Host "MongoDB URL: $env:MONGODB_URL" -ForegroundColor Yellow
 Write-Host "Backend will be available at: http://localhost:8000" -ForegroundColor Cyan
 
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
