@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     
     # Security
     min_password_length: int = 8
+
+    # Stripe
+    stripe_secret_key: str = ""
+    stripe_price_standard: str = ""
+    stripe_price_premium: str = ""
     
     class Config:
         env_file = ".env"

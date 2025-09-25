@@ -45,6 +45,10 @@ export const authAPI = {
   upgrade: (plan) => api.post('/auth/upgrade', { plan }),
 }
 
+export const paymentsAPI = {
+  createCheckoutSession: (plan) => api.post('/payments/create-checkout-session', { plan }),
+}
+
 export const propertyAPI = {
   query: (propertyData) => api.post('/property/query', propertyData),
   history: (limit = 10) => api.get(`/property/history?limit=${limit}`),

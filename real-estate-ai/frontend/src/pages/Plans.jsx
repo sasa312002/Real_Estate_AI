@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { authAPI } from '../services/api'
+import { authAPI, paymentsAPI } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import { Check } from 'lucide-react'
 
@@ -43,6 +43,28 @@ export default function Plans() {
     load()
   }, [])
 
+  useEffect(() => {
+    // Handle redirect back from Stripe Checkout
+    const params = new URLSearchParams(window.location.search)
+    const success = params.get('success')
+    const plan = params.get('plan')
+    const canceled = params.get('canceled')
+    if (success === 'true' && (plan === 'standard' || plan === 'premium')) {
+      ;(async () => {
+        try {
+          await authAPI.upgrade(plan)
+          window.history.replaceState({}, document.title, window.location.pathname)
+          window.location.reload()
+        } catch (e) {
+          setMessage(e.response?.data?.detail || 'Finalizing upgrade failed')
+        }
+      })()
+    } else if (canceled === 'true') {
+      setMessage('Payment canceled')
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+  }, [])
+
   const handleUpgrade = async (plan) => {
     if (!isAuthenticated) {
       setMessage('Please login first')
@@ -51,11 +73,18 @@ export default function Plans() {
     setUpgrading(plan)
     setMessage('')
     try {
-      await authAPI.upgrade(plan)
-      // Force refresh of user metadata by calling /auth/me
-      const me = await authAPI.me()
-      // patch user object locally (AuthContext currently lacks setter exposure; rely on reload)
-      window.location.href = '/plans' // simple reload to refresh context
+      if (plan === 'free') {
+        await authAPI.upgrade(plan)
+        window.location.href = '/plans'
+      } else {
+        const res = await paymentsAPI.createCheckoutSession(plan)
+        const url = res.data?.checkout_url
+        if (url) {
+          window.location.href = url
+        } else {
+          throw new Error('Failed to create checkout session')
+        }
+      }
     } catch (e) {
       setMessage(e.response?.data?.detail || 'Upgrade failed')
     } finally {
