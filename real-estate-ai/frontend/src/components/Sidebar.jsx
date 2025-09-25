@@ -77,6 +77,7 @@ function Sidebar({ isOpen, onToggle, className = '' }) {
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [historyError, setHistoryError] = useState('')
 
+  // Fetch history on mount and when location changes (to refresh on navigation)
   useEffect(() => {
     const loadHistory = async () => {
       setLoadingHistory(true)

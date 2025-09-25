@@ -13,6 +13,7 @@ const DefaultIcon = L.icon({
 })
 L.Marker.prototype.options.icon = DefaultIcon
 
+// MapPreview component to display a map with a marker at given latitude and longitude
 function MapPreview({ lat, lon, className = '', height = 200, popupText = 'Location' }) {
   if (lat == null || lon == null || isNaN(lat) || isNaN(lon)) {
     return null
