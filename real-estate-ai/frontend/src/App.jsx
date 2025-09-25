@@ -1,6 +1,7 @@
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Header from './components/Header'
+import SidebarLayout from './components/SidebarLayout'
 import HomePage from './pages/HomePage'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -23,25 +24,46 @@ function AppContent() {
 
   return (
     <Routes>
-      {/* Public Routes */}
-      <Route path="/" element={<HomePage />} />
+      {/* Homepage - No Sidebar (Clean Design) */}
+      <Route 
+        path="/" 
+        element={
+          <SidebarLayout showSidebar={false}>
+            <HomePage />
+          </SidebarLayout>
+        }
+      />
       <Route 
         path="/login" 
-        element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} 
+        element={
+          isAuthenticated ? <Navigate to="/" replace /> : (
+            <SidebarLayout showSidebar={false}>
+              <Login />
+            </SidebarLayout>
+          )
+        } 
       />
       <Route 
         path="/signup" 
-        element={isAuthenticated ? <Navigate to="/" replace /> : <Signup />} 
+        element={
+          isAuthenticated ? <Navigate to="/" replace /> : (
+            <SidebarLayout showSidebar={false}>
+              <Signup />
+            </SidebarLayout>
+          )
+        } 
       />
       
-      {/* Protected Routes */}
+      {/* Protected Routes - With Sidebar */}
       <Route 
         path="/query" 
         element={
           isAuthenticated ? (
-            <AuthenticatedLayout>
-              <Query />
-            </AuthenticatedLayout>
+            <SidebarLayout showSidebar={true}>
+              <div className="h-full">
+                <Query />
+              </div>
+            </SidebarLayout>
           ) : (
             <Navigate to="/login" replace />
           )
@@ -51,9 +73,11 @@ function AppContent() {
         path="/history" 
         element={
           isAuthenticated ? (
-            <AuthenticatedLayout>
-              <History />
-            </AuthenticatedLayout>
+            <SidebarLayout showSidebar={true}>
+              <div className="h-full">
+                <History />
+              </div>
+            </SidebarLayout>
           ) : (
             <Navigate to="/login" replace />
           )
@@ -63,18 +87,6 @@ function AppContent() {
       {/* Catch all route */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
-  )
-}
-
-// Layout component for authenticated pages
-function AuthenticatedLayout({ children }) {
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Header />
-      <main className="container mx-auto px-4 py-8">
-        {children}
-      </main>
-    </div>
   )
 }
 

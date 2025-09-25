@@ -1,11 +1,13 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { useTheme } from '../contexts/ThemeContext'
+import { useAuth } from '../contexts/AuthContext'
 import Header from '../components/Header'
 import ImageSlideshow from '../components/ImageSlideshow'
 
 const HomePage = () => {
   const { isDarkMode } = useTheme()
+  const { isAuthenticated, user } = useAuth()
 
   const features = [
     {
@@ -59,28 +61,56 @@ const HomePage = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Text Content */}
             <div className="text-center lg:text-left">
+              {isAuthenticated && (
+                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg inline-block">
+                  <p className="text-blue-700 dark:text-blue-300 font-medium">
+                    👋 Welcome back, {user?.username}!
+                  </p>
+                </div>
+              )}
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6">
                 AI-Powered
                 <span className="text-blue-600 block">Real Estate</span>
                 Intelligence for Sri Lanka
               </h1>
               <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 mb-8 max-w-2xl mx-auto lg:mx-0">
-                Make smarter real estate decisions in Sri Lanka with our advanced AI platform. Get accurate price estimates, 
-                analyze neighborhoods, and evaluate investment opportunities with confidence.
+                {isAuthenticated 
+                  ? "Ready to analyze your next property investment? Use our advanced AI tools to make informed decisions in the Sri Lankan real estate market."
+                  : "Make smarter real estate decisions in Sri Lanka with our advanced AI platform. Get accurate price estimates, analyze neighborhoods, and evaluate investment opportunities with confidence."
+                }
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                <Link
-                  to="/signup"
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg text-lg transition-colors duration-200"
-                >
-                  Get Started Free
-                </Link>
-                <Link
-                  to="/login"
-                  className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold py-3 px-8 rounded-lg text-lg transition-colors duration-200"
-                >
-                  Try Demo
-                </Link>
+                {isAuthenticated ? (
+                  <>
+                    <Link
+                      to="/query"
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-8 rounded-xl text-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                    >
+                      Start New Analysis
+                    </Link>
+                    <Link
+                      to="/history"
+                      className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold py-3 px-8 rounded-xl text-lg transition-colors duration-200"
+                    >
+                      View History
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      to="/signup"
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg text-lg transition-colors duration-200"
+                    >
+                      Get Started
+                    </Link>
+                    <Link
+                      to="/login"
+                      className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold py-3 px-8 rounded-lg text-lg transition-colors duration-200"
+                    >
+                      Try Demo
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
 
@@ -200,20 +230,39 @@ const HomePage = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-blue-600">
+      <section className="py-20 bg-gradient-to-r from-blue-600 to-purple-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-bold text-white mb-4">
-            Ready to Get Started?
-          </h2>
-          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Join hundreds of users making smarter real estate decisions in Sri Lanka with AI
-          </p>
-          <Link
-            to="/signup"
-            className="bg-white text-blue-600 hover:bg-gray-100 font-semibold py-3 px-8 rounded-lg text-lg transition-colors duration-200"
-          >
-            Start Free Trial
-          </Link>
+          {isAuthenticated ? (
+            <>
+              <h2 className="text-4xl font-bold text-white mb-4">
+                Welcome back, {user?.username}!
+              </h2>
+              <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
+                Ready to analyze your next property investment in Sri Lanka?
+              </p>
+              <Link
+                to="/query"
+                className="bg-white text-blue-600 hover:bg-gray-100 font-semibold py-3 px-8 rounded-xl text-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+              >
+                Start New Analysis
+              </Link>
+            </>
+          ) : (
+            <>
+              <h2 className="text-4xl font-bold text-white mb-4">
+                Ready to Get Started?
+              </h2>
+              <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
+                Join hundreds of users making smarter real estate decisions in Sri Lanka with AI
+              </p>
+              <Link
+                to="/signup"
+                className="bg-white text-blue-600 hover:bg-gray-100 font-semibold py-3 px-8 rounded-lg text-lg transition-colors duration-200"
+              >
+                Start Free Trial
+              </Link>
+            </>
+          )}
         </div>
       </section>
 
