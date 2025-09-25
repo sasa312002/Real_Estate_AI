@@ -1,4 +1,5 @@
 from beanie import Document, Indexed
+from typing import Annotated
 from pydantic import Field, EmailStr, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime
@@ -7,10 +8,14 @@ from bson import ObjectId
 class User(Document):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     
-    email: Indexed(EmailStr, unique=True)
-    username: Indexed(str, unique=True)
+    email: Annotated[EmailStr, Indexed(unique=True)]
+    username: Annotated[str, Indexed(unique=True)]
     hashed_password: str
     is_active: bool = True
+    # Subscription / package plan: free | standard | premium
+    plan: str = "free"
+    # Number of analyses performed under current plan
+    analyses_used: int = 0
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = None
     

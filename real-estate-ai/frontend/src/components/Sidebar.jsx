@@ -275,6 +275,18 @@ function Sidebar({ isOpen, onToggle, className = '' }) {
               <History className={`${isCollapsed ? 'w-6 h-6' : 'w-5 h-5'} transition-all duration-300`} />
               {!isCollapsed && <span className="font-medium transition-opacity duration-300">History</span>}
             </button>
+            <button
+              onClick={() => handleNavigation('/plans')}
+              className={`group w-full flex items-center ${isCollapsed ? 'justify-start pl-3 pr-3 py-3' : 'space-x-3 px-4 py-3'} rounded-xl transition-all duration-200 transform hover:scale-[1.02] ${
+                isActive('/plans')
+                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700 shadow-sm'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-blue-600 dark:hover:text-blue-400'
+              }`}
+              title={isCollapsed ? 'Plans' : ''}
+            >
+              <Settings className={`${isCollapsed ? 'w-6 h-6' : 'w-5 h-5'} transition-all duration-300`} />
+              {!isCollapsed && <span className="font-medium transition-opacity duration-300">Plans & Pricing</span>}
+            </button>
           </nav>
         </div>
 

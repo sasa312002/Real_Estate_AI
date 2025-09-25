@@ -25,9 +25,19 @@ export function Logo({ size = 12, collapsed = false, showText = true, variant = 
             </filter>
           </defs>
           <rect x="2" y="2" width="60" height="60" rx="14" fill={`url(#${gradientId})`} />
-          {/* Stylized monogram: R + AI roof/building motif */}
-          <path d="M20 44V22c0-2 1.8-4 4-4h8c6 0 12 4 12 11 0 5-3 9-7 10l7 9h-8l-6-8h-2v8h-8Zm8-16h6c2 0 4-2 4-4s-2-4-4-4h-6v8Z" fill="#ffffff" fillOpacity={variant==='mono'?0.9:1} />
-          <path d="M34 18 48 28v16c0 1.1-.9 2-2 2h-4V30L32 24l-6 4v-6l8-4Z" fill="#ffffff" opacity="0.9" />
+          {/* House-only logo (aligned with favicon) */}
+          <g fill="#ffffff" fillOpacity={variant==='mono'?0.9:1}>
+            {/* House silhouette */}
+            <path d="M16 36 32 22l16 14v14c0 1.1-.9 2-2 2h-6V40H24v12h-6c-1.1 0-2-.9-2-2V36Z" />
+            {/* Roof ridge highlight */}
+            {variant !== 'mono' && (
+              <path d="M16 36 32 22l16 14" fill="none" stroke="#ffffff" strokeOpacity="0.55" strokeWidth="3" strokeLinecap="round" />
+            )}
+            {/* Door */}
+            <rect x="28" y="40" width="8" height="12" rx="1.5" fill={variant==='mono'? '#ffffff' : '#4f46e5'} />
+            {/* Door knob */}
+            <circle cx="34" cy="46" r="1.1" fill="#ffffff" />
+          </g>
         </svg>
       </div>
       {showText && !collapsed && (
