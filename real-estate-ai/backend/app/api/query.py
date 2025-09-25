@@ -152,6 +152,42 @@ async def get_query_history(
             detail="Internal server error fetching query history"
         )
 
+@router.delete("/history/{query_id}")
+async def delete_query_history(
+    query_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a user's query history item and its associated response.
+
+    Returns a simple status object on success. If the query does not exist or
+    does not belong to the user, appropriate HTTP errors are raised.
+    """
+    try:
+        if not ObjectId.is_valid(query_id):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid query id")
+
+        query = await Query.get(ObjectId(query_id))
+        if not query:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Query not found")
+        if query.user_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this query")
+
+        # Delete associated response if present
+        response = await Response.find_one({"query_id": query.id})
+        if response:
+            await response.delete()
+
+        await query.delete()
+        return {"status": "deleted", "id": query_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting query history: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error deleting query history"
+        )
+
 @router.get("/details/{query_id}", response_model=PropertyResponse)
 async def get_query_details(
     query_id: str,

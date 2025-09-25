@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react'
+import { propertyAPI } from '../services/api'
 
 function Sidebar({ isOpen, onToggle, className = '' }) {
   const { user, logout } = useAuth()
@@ -71,58 +72,51 @@ function Sidebar({ isOpen, onToggle, className = '' }) {
     return () => window.removeEventListener('keydown', handleKeydown)
   }, [isMobile, toggleCollapse])
   
-  // Personal property analysis history - your recent searches
-  const [chatHistory, setChatHistory] = useState([
-    {
-      id: 1,
-      title: "My Family Home Search",
-      date: "2024-09-25",
-      preview: "4 bed house in Dehiwala - budget 50M...",
-      isActive: false
-    },
-    {
-      id: 2,
-      title: "Investment Property Analysis",
-      date: "2024-09-24",
-      preview: "Apartment complex in Nugegoda - ROI check...",
-      isActive: false
-    },
-    {
-      id: 3,
-      title: "Weekend Getaway Villa",
-      date: "2024-09-23",
-      preview: "Beach house in Mirissa - holiday rental...",
-      isActive: false
-    },
-    {
-      id: 4,
-      title: "Office Space Requirements",
-      date: "2024-09-22",
-      preview: "Commercial space in Colombo 03 - 2000 sqft...",
-      isActive: false
-    },
-    {
-      id: 5,
-      title: "Land for Future Development",
-      date: "2024-09-21",
-      preview: "Residential plot in Malabe - development potential...",
-      isActive: false
-    },
-    {
-      id: 6,
-      title: "Retirement Home Search",
-      date: "2024-09-20",
-      preview: "Quiet property in Kandy - mountain view...",
-      isActive: false
-    },
-    {
-      id: 7,
-      title: "Student Accommodation",
-      date: "2024-09-19",
-      preview: "Apartment near University of Colombo...",
-      isActive: false
+  // Replace static mock history with real fetched history (latest 5)
+  const [chatHistory, setChatHistory] = useState([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [historyError, setHistoryError] = useState('')
+
+  useEffect(() => {
+    const loadHistory = async () => {
+      setLoadingHistory(true)
+      setHistoryError('')
+      try {
+        const res = await propertyAPI.history(5)
+        // Adapt to structure: each item has id, query_text, created_at
+        const adapted = res.data.map(h => ({
+          id: h.id,
+          title: h.query_text?.slice(0, 60) || 'Query',
+            // preview left empty or truncated further text
+          preview: h.query_text?.length > 60 ? h.query_text.slice(60, 120) + '...' : '',
+          date: new Date(h.created_at).toLocaleDateString(),
+          isActive: false,
+          hasResponse: h.has_response
+        }))
+        setChatHistory(adapted)
+      } catch (e) {
+        setHistoryError(e.response?.data?.detail || 'Failed to load recent history')
+      } finally {
+        setLoadingHistory(false)
+      }
     }
-  ])
+    loadHistory()
+  }, [location.pathname])
+
+  const refreshHistoryAfterDelete = async () => {
+    try {
+      const res = await propertyAPI.history(5)
+      const adapted = res.data.map(h => ({
+        id: h.id,
+        title: h.query_text?.slice(0, 60) || 'Query',
+        preview: h.query_text?.length > 60 ? h.query_text.slice(60, 120) + '...' : '',
+        date: new Date(h.created_at).toLocaleDateString(),
+        isActive: false,
+        hasResponse: h.has_response
+      }))
+      setChatHistory(adapted)
+    } catch {}
+  }
 
   const handleLogout = async () => {
     await logout()
@@ -144,16 +138,22 @@ function Sidebar({ isOpen, onToggle, className = '' }) {
   }
 
   const handleChatSelect = (chatId) => {
-    // In real app, this would load the specific chat
-    navigate(`/query?chat=${chatId}`)
+    navigate(`/history?select=${chatId}`)
     if (window.innerWidth < 768) {
       onToggle()
     }
   }
 
-  const deleteChatHistory = (chatId, e) => {
+  const deleteChatHistory = async (chatId, e) => {
     e.stopPropagation()
-    setChatHistory(prev => prev.filter(chat => chat.id !== chatId))
+    try {
+      await propertyAPI.deleteHistory(chatId)
+      setChatHistory(prev => prev.filter(c => c.id !== chatId))
+      // backfill to still show up to 5
+      refreshHistoryAfterDelete()
+    } catch (err) {
+      console.error('Failed to delete history', err)
+    }
   }
 
   const isActive = (path) => location.pathname === path
@@ -297,39 +297,37 @@ function Sidebar({ isOpen, onToggle, className = '' }) {
           <div className="px-4 mb-4 transition-opacity duration-300">
             <div>
               <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
-                History
+                Recent History
               </h3>
+              {historyError && <div className="text-xs text-red-500 mb-2">{historyError}</div>}
               <div className="space-y-2">
-              {chatHistory.slice(-7).map((chat) => (
+              {loadingHistory && <div className="text-xs text-gray-400">Loading...</div>}
+              {!loadingHistory && chatHistory.length === 0 && <div className="text-xs text-gray-400">No recent items</div>}
+              {chatHistory.map((chat) => (
                 <div
                   key={chat.id}
                   onClick={() => handleChatSelect(chat.id)}
                   className="group flex items-center justify-between p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
                 >
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {chat.title}
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white truncate flex items-center space-x-1">
+                      <span>{chat.title}</span>
+                      {!chat.hasResponse && <span className="text-[10px] px-1 py-0.5 bg-yellow-100 text-yellow-700 rounded">Pending</span>}
                     </h4>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
-                      {chat.preview}
-                    </p>
+                    {chat.preview && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
+                        {chat.preview}
+                      </p>
+                    )}
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                       {chat.date}
                     </p>
                   </div>
                   <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        // Edit functionality
-                      }}
-                      className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-                    >
-                      <Edit3 className="w-3 h-3" />
-                    </button>
-                    <button
                       onClick={(e) => deleteChatHistory(chat.id, e)}
                       className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                      title="Delete"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>

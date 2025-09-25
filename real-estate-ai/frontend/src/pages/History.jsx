@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { propertyAPI } from '../services/api'
 import { Clock, Search, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
 import MapPreview from '../components/MapPreview'
+import { useLocation } from 'react-router-dom'
 
 function History() {
   const [items, setItems] = useState([])
@@ -10,6 +11,8 @@ function History() {
   const [openId, setOpenId] = useState(null)
   const [details, setDetails] = useState({})
   const [loadingDetailId, setLoadingDetailId] = useState(null)
+  const locationHook = useLocation()
+  const [selectedId, setSelectedId] = useState(null)
 
   useEffect(() => {
     const load = async () => {
@@ -24,6 +27,29 @@ function History() {
     }
     load()
   }, [])
+
+  useEffect(() => {
+    const params = new URLSearchParams(locationHook.search)
+    const sel = params.get('select')
+    if (sel) {
+      setSelectedId(sel)
+      setOpenId(sel) // auto open
+      // Attempt to lazy-load details for this id
+      ;(async () => {
+        if (!details[sel]) {
+          setLoadingDetailId(sel)
+          try {
+            const res = await propertyAPI.details(sel)
+            setDetails(prev => ({ ...prev, [sel]: res.data }))
+          } catch (e) {
+            setDetails(prev => ({ ...prev, [sel]: { error: e.response?.data?.detail || 'Failed to load details' } }))
+          } finally {
+            setLoadingDetailId(null)
+          }
+        }
+      })()
+    }
+  }, [locationHook.search])
 
   const toggleDetails = async (id) => {
     if (openId === id) {
@@ -122,11 +148,14 @@ function History() {
 
       <div className="space-y-3">
         {items.map((h) => (
-          <div key={h.id} className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div key={h.id} className={`bg-white rounded-lg shadow-sm border ${selectedId === h.id ? 'border-blue-400 ring-1 ring-blue-200' : 'border-gray-200'}`}>
             <button onClick={() => toggleDetails(h.id)} className="w-full text-left p-4">
               <div className="flex items-start justify-between">
                 <div className="pr-4">
-                  <div className="text-gray-900 font-medium mb-1 line-clamp-2">{h.query_text}</div>
+                  <div className="text-gray-900 font-medium mb-1 line-clamp-2 flex items-center space-x-2">
+                    <span>{h.query_text}</span>
+                    {selectedId === h.id && <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded">Selected</span>}
+                  </div>
                   <div className="text-xs text-gray-500 flex items-center">
                     <Clock className="h-3.5 w-3.5 mr-1" />
                     {new Date(h.created_at).toLocaleString()}
