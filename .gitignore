@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+venv/
+.venv/
+real-estate-ai/backend/venv/
+
+# Local databases and artifacts
+real-estate-ai/backend/realestate.db
+
+# Node / Vite (frontend)
+real-estate-ai/frontend/node_modules/
+real-estate-ai/frontend/dist/
+real-estate-ai/frontend/.vite/
+real-estate-ai/frontend/.cache/
+real-estate-ai/frontend/**/*.map
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+
