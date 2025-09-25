@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="RealEstateAI House Icon">
+	<defs>
+		<linearGradient id="bg" x1="8" y1="56" x2="56" y2="8" gradientUnits="userSpaceOnUse">
+			<stop offset="0" stop-color="#1d4ed8"/>
+			<stop offset="0.55" stop-color="#4f46e5"/>
+			<stop offset="1" stop-color="#7e22ce"/>
+		</linearGradient>
+	</defs>
+	<!-- Rounded gradient background -->
+	<rect x="4" y="4" width="56" height="56" rx="16" fill="url(#bg)"/>
+	<!-- Simple house silhouette (optimized for 16px favicon legibility) -->
+	<path d="M16 33.5 32 20l16 13.5v17c0 .8-.7 1.5-1.5 1.5H41V38H23v14H17.5c-.8 0-1.5-.7-1.5-1.5v-17Z" fill="#ffffff"/>
+	<!-- Roof ridge highlight for subtle depth -->
+	<path d="M16 33.5 32 20l16 13.5" fill="none" stroke="#ffffff" stroke-opacity="0.6" stroke-width="3" stroke-linecap="round"/>
+	<!-- Door -->
+	<rect x="28" y="41" width="8" height="11" rx="1.5" fill="#4f46e5"/>
+	<!-- Door knob -->
+	<circle cx="34" cy="46.5" r="1.2" fill="#fff"/>
+</svg>

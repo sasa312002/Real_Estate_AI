@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import Header from '../components/Header'
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react'
 
+// Login page with email and password fields, and link to signup
 function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

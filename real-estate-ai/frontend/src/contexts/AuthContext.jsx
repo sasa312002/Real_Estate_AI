@@ -40,15 +40,16 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     try {
       const response = await api.post('/auth/login', { email, password })
-      const { access_token } = response.data
+  const { access_token, plan, analyses_limit, analyses_remaining } = response.data
       
       setToken(access_token)
       localStorage.setItem('token', access_token)
       api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`
       
       // Get user info
-      const userResponse = await api.get('/auth/me')
-      setUser(userResponse.data)
+  const userResponse = await api.get('/auth/me')
+  // Merge plan info just in case /auth/me lags behind (should already include)
+  setUser({ ...userResponse.data, plan: userResponse.data.plan || plan, analyses_limit: userResponse.data.analyses_limit || analyses_limit, analyses_remaining: userResponse.data.analyses_remaining ?? analyses_remaining })
       
       return { success: true }
     } catch (error) {
@@ -63,15 +64,15 @@ export function AuthProvider({ children }) {
   const signup = async (email, username, password) => {
     try {
       const response = await api.post('/auth/signup', { email, username, password })
-      const { access_token } = response.data
+  const { access_token, plan, analyses_limit, analyses_remaining } = response.data
       
       setToken(access_token)
       localStorage.setItem('token', access_token)
       api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`
       
       // Get user info
-      const userResponse = await api.get('/auth/me')
-      setUser(userResponse.data)
+  const userResponse = await api.get('/auth/me')
+  setUser({ ...userResponse.data, plan: userResponse.data.plan || plan, analyses_limit: userResponse.data.analyses_limit || analyses_limit, analyses_remaining: userResponse.data.analyses_remaining ?? analyses_remaining })
       
       return { success: true }
     } catch (error) {

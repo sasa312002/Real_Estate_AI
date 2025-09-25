@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { propertyAPI } from '../services/api'
 import ResponseCard from '../components/ResponseCard'
 import LocationPicker from '../components/LocationPicker'
-import { Home, MapPin, Bed, Bath, Ruler, Calendar } from 'lucide-react'
+import { Home, MapPin, Bed, Bath, Ruler, Calendar, ArrowUpRight } from 'lucide-react'
 
 function Query() {
   const { user } = useAuth()
@@ -76,7 +76,13 @@ function Query() {
 
       setResponse(result.data)
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to analyze property')
+      const status = err.response?.status
+      const detail = err.response?.data?.detail
+      if (status === 402) {
+        setError(detail || 'You have reached your analysis limit. Upgrade your plan to continue.')
+      } else {
+        setError(detail || 'Failed to analyze property')
+      }
     } finally {
       setLoading(false)
     }
@@ -97,9 +103,27 @@ function Query() {
     <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Property Analysis
-        </h1>
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Property Analysis
+          </h1>
+          {user && (
+            <div className="flex items-center space-x-3">
+              <span className="text-sm bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full font-medium">
+                Plan: <span className="capitalize">{user.plan}</span>
+              </span>
+              <span className={`text-sm px-3 py-1 rounded-full font-medium ${user.analyses_remaining === 0 ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'}`}>
+                Remaining: {user.analyses_remaining}
+              </span>
+              <a
+                href="/plans"
+                className="text-sm inline-flex items-center space-x-1 font-semibold text-blue-600 hover:text-purple-600 dark:text-blue-400 dark:hover:text-purple-400"
+              >
+                <span>Upgrade</span><ArrowUpRight className="w-4 h-4" />
+              </a>
+            </div>
+          )}
+        </div>
         <p className="text-gray-600 dark:text-gray-400 mt-1">
           Welcome back, {user?.username}! Analyze properties with AI-powered insights.
         </p>
@@ -280,11 +304,24 @@ function Query() {
           </form>
 
           {error && (
-            <div className="mt-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl flex items-center space-x-3">
-              <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="font-medium">{error}</span>
+            <div className="mt-6 space-y-4">
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl flex items-center space-x-3">
+                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="font-medium">{error}</span>
+              </div>
+              {error.toLowerCase().includes('limit') && (
+                <div className="p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-lg mb-1">Upgrade Required</h4>
+                    <p className="text-sm opacity-90">You have used all analyses available in your current plan. Upgrade to Standard or Premium for more analyses.</p>
+                  </div>
+                  <a href="/plans" className="inline-flex items-center justify-center px-5 py-3 bg-white/10 hover:bg-white/20 rounded-lg font-semibold text-sm tracking-wide transition-colors border border-white/20">
+                    View Plans <ArrowUpRight className="w-4 h-4 ml-2" />
+                  </a>
+                </div>
+              )}
             </div>
           )}
         </div>

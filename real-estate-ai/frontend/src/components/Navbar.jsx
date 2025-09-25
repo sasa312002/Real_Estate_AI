@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { Home, LogOut, User, Sun, Moon } from 'lucide-react'
+import Logo from './Logo'
 
 function Navbar() {
   const { user, logout } = useAuth()
@@ -24,10 +25,7 @@ function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex items-center space-x-6">
             <Link to="/query" className="flex items-center">
-              <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center mr-2">
-                <span className="text-white font-bold text-sm">RE</span>
-              </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-white">Real Estate AI</span>
+              <Logo size={10} />
             </Link>
             <Link to="/history" className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
               History

@@ -100,7 +100,6 @@ function ResponseCard({ response }) {
           </div>
         </div>
       </div>
-
       {/* Provenance */}
       {Array.isArray(response.provenance) && response.provenance.length > 0 && (
         <div>
@@ -161,6 +160,7 @@ function ResponseCard({ response }) {
             Helpful
           </button>
           
+
           <button
             onClick={() => handleFeedback(false)}
             disabled={submittingFeedback}

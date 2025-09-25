@@ -3,7 +3,9 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { Sun, Moon, LogOut, User, Home } from 'lucide-react'
+import Logo from './Logo'
 
+//header component with logo, theme toggle, user info, and auth buttons
 const Header = () => {
   const { user, logout, isAuthenticated } = useAuth()
   const { isDarkMode, toggleTheme } = useTheme()
@@ -19,20 +21,8 @@ const Header = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           {/* Logo and Brand */}
-          <Link to="/" className="flex items-center group">
-            <div className="h-12 w-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
-              <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-              </svg>
-            </div>
-            <div className="ml-3">
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Real Estate AI
-              </span>
-              <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                Sri Lanka Property Intelligence
-              </div>
-            </div>
+          <Link to="/" className="group">
+            <Logo />
           </Link>
 
 

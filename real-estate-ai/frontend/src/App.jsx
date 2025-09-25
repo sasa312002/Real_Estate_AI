@@ -7,6 +7,7 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Query from './pages/Query'
 import History from './pages/History'
+import Plans from './pages/Plans'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import './App.css'
@@ -82,6 +83,14 @@ function AppContent() {
             <Navigate to="/login" replace />
           )
         } 
+      />
+      <Route
+        path="/plans"
+        element={
+          <SidebarLayout showSidebar={false}>
+            <Plans />
+          </SidebarLayout>
+        }
       />
       
       {/* Catch all route */}
