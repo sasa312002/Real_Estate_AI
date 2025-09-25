@@ -94,15 +94,19 @@ function Query() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
+      {/* Header */}
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           Property Analysis
         </h1>
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-gray-400 mt-1">
           Welcome back, {user?.username}! Analyze properties with AI-powered insights.
         </p>
       </div>
+      
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto p-6">
 
       <div className="space-y-8">
         {/* Query Form */}
@@ -321,6 +325,7 @@ function Query() {
             )}
           </div>
         )}
+      </div>
       </div>
     </div>
   )
