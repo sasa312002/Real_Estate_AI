@@ -156,6 +156,11 @@ function History() {
                     <span>{h.query_text}</span>
                     {selectedId === h.id && <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded">Selected</span>}
                   </div>
+                  {h.city && (
+                    <div className="text-sm text-gray-700 font-medium mb-1">
+                      {h.city}
+                    </div>
+                  )}
                   <div className="text-xs text-gray-500 flex items-center">
                     <Clock className="h-3.5 w-3.5 mr-1" />
                     {new Date(h.created_at).toLocaleString()}

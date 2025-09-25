@@ -42,6 +42,7 @@ class PropertyResponse(BaseModel):
 class QueryHistory(BaseModel):
     id: str
     query_text: str
+    city: Optional[str] = None
     created_at: str
     has_response: bool
 
@@ -166,6 +167,7 @@ async def get_query_history(
             history.append(QueryHistory(
                 id=str(query.id),
                 query_text=query.query_text,
+                city=query.city,
                 created_at=query.created_at.isoformat(),
                 has_response=has_response
             ))
