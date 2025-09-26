@@ -58,3 +58,8 @@ export const feedbackAPI = {
   getResponseFeedback: (responseId) => api.get(`/feedback/response/${responseId}`),
 }
 
+export const paymentsAPI = {
+  createCheckout: (plan) => api.post('/payments/create-checkout', { plan }),
+  verifySession: (sessionId) => api.post('/payments/verify-session', { session_id: sessionId }),
+}
+
