@@ -1,72 +1,58 @@
 import logging
 from typing import Dict, List, Tuple
 import random
+import google.generativeai as genai
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 class PriceAgent:
     def __init__(self):
-        # Sri Lankan LKR pricing per square foot (in LKR)
-        self.base_price_per_sqft = 25000  # Default base price per square foot in LKR
+        # Initialize Gemini AI model for price reasoning
+        if hasattr(settings, 'gemini_api_key') and settings.gemini_api_key:
+            genai.configure(api_key=settings.gemini_api_key)
+            try:
+                # Try different model names to find one that works
+                available_models = [
+                    'gemini-1.5-flash',
+                    'gemini-1.5-pro',
+                    'gemini-2.0-flash',
+                    'gemini-pro-latest',
+                    'gemini-flash-latest'
+                ]
+                self.model = None
+                for model_name in available_models:
+                    try:
+                        self.model = genai.GenerativeModel(model_name)
+                        # Test the model with a simple request
+                        test_response = self.model.generate_content("Hello")
+                        logger.info(f"Successfully initialized Gemini model: {model_name}")
+                        break
+                    except Exception as e:
+                        logger.debug(f"Failed to initialize model {model_name}: {e}")
+                        continue
+                
+                if not self.model:
+                    logger.warning("Could not initialize any Gemini model. Using fallback logic.")
+                    
+            except Exception as e:
+                logger.error(f"Error initializing Gemini: {e}")
+                self.model = None
+        else:
+            logger.warning("gemini_api_key not configured. Price estimation will use fallback logic.")
+            self.model = None
         
     def estimate_price(self, features: Dict) -> Dict:
         """
-        Estimate property price based on features for Sri Lankan market.
+        Estimate property price using AI reasoning for Sri Lankan market.
         Returns: {estimated_price, confidence, features_used, comps, currency}
         """
         try:
-            # Extract features
-            area = features.get('area', 1000)
-            beds = features.get('beds', 2)
-            baths = features.get('baths', 2)
-            year_built = features.get('year_built', 2000)
-            city = features.get('city', 'Unknown')
-            district = features.get('district', '')
-            property_type = features.get('property_type', 'House')
-            land_size = features.get('land_size', 0)
-            asking_price = features.get('asking_price', 0)
-            
-            # Base price calculation in LKR
-            base_price = area * self.base_price_per_sqft
-            
-            # Property type adjustments for Sri Lanka
-            type_multiplier = self._get_property_type_multiplier(property_type)
-            base_price *= type_multiplier
-            
-            # Bedroom and bathroom adjustments
-            bed_adjustment = (beds - 2) * 500000  # Each additional bed adds LKR 500k
-            bath_adjustment = (baths - 1) * 300000  # Each additional bath adds LKR 300k
-            
-            # Age adjustment (newer = more expensive)
-            current_year = 2024
-            age = current_year - year_built
-            age_adjustment = max(0, (30 - age) * 100000)  # Newer properties get premium
-            
-            # City and district adjustment for Sri Lanka
-            city_multiplier = self._get_city_multiplier(city, district)
-            
-            # Land size adjustment for houses
-            land_adjustment = 0
-            if property_type == 'House' and land_size > 0:
-                land_adjustment = (land_size - area) * 15000  # Additional land value
-            
-            # Calculate estimated price
-            estimated_price = (base_price + bed_adjustment + bath_adjustment + age_adjustment + land_adjustment) * city_multiplier
-            
-            # Generate confidence based on data completeness
-            confidence = self._calculate_confidence(features)
-            
-            # Generate comparable properties for Sri Lankan market
-            comps = self._generate_comps(features, estimated_price)
-            
-            return {
-                "estimated_price": round(estimated_price, 2),
-                "confidence": confidence,
-                "features_used": list(features.keys()),
-                "comps": comps,
-                "currency": "LKR",
-                "price_per_sqft": round(estimated_price / area, 2) if area > 0 else 0
-            }
+            # Use AI reasoning if available, otherwise fallback
+            if self.model:
+                return self._ai_estimate_price(features)
+            else:
+                return self._fallback_estimate_price(features)
             
         except Exception as e:
             logger.error(f"Error in price estimation: {e}")
@@ -78,103 +64,191 @@ class PriceAgent:
                 "currency": "LKR",
                 "error": str(e)
             }
-    
-    def _get_city_multiplier(self, city: str, district: str = '') -> float:
-        """Get city-specific price multiplier for Sri Lanka"""
-        city_multipliers = {
-            # Major Cities
-            'Colombo': 1.8,      # Highest property values
-            'Kandy': 1.4,        # Cultural capital
-            'Galle': 1.3,        # Tourist area
-            'Jaffna': 1.1,       # Northern capital
-            'Negombo': 1.2,      # Airport proximity
-            'Matara': 1.1,       # Southern coastal
-            'Anuradhapura': 1.0, # Historical city
-            'Polonnaruwa': 0.9,  # Historical city
-            'Trincomalee': 1.1,  # Port city
-            'Batticaloa': 1.0,   # Eastern coastal
-            'Ratnapura': 0.9,    # Gem city
-            'Kurunegala': 1.0,   # Central city
-            'Badulla': 0.9,      # Hill country
-            'Monaragala': 0.8,   # Rural area
-            'Vavuniya': 0.9,     # Northern area
-            'Mullaitivu': 0.8,   # Northern coastal
-            'Kilinochchi': 0.8,  # Northern area
-            'Ampara': 0.9,       # Eastern area
-            'Puttalam': 1.0,     # Northwestern
-            'Hambantota': 1.1,   # Southern port
-            'Kalutara': 1.2,     # Western coastal
-            'Gampaha': 1.3,      # Colombo suburb
-            'Nuwara Eliya': 1.2, # Hill station
-            'Kegalle': 1.0,      # Central area
-            'Unknown': 1.0
+
+    def _ai_estimate_price(self, features: Dict) -> Dict:
+        """
+        Use Gemini AI to reason about property price step by step
+        """
+        try:
+            # Prepare property details for AI analysis
+            property_details = self._format_property_details(features)
+            
+            # Create detailed prompt for AI reasoning
+            prompt = f"""
+You are a Real Estate Price Estimator Agent specialized in the Sri Lankan property market. 
+Analyze the following property details step by step and provide a realistic price estimate in Sri Lankan Rupees (LKR).
+
+Property Details:
+{property_details}
+
+Please analyze this property step by step:
+
+1. **Location Analysis**: Consider the city/district and its market value, proximity to amenities, transportation, and economic factors.
+
+2. **Property Characteristics**: Evaluate the size, bedrooms, bathrooms, property type, and how these affect market value.
+
+3. **Age and Condition**: Consider the year built and how property age affects value in the Sri Lankan market.
+
+4. **Market Context**: Consider current Sri Lankan real estate trends, economic conditions, and comparable properties.
+
+5. **Special Factors**: Any unique features, land size, or other factors that would impact price.
+
+Based on your analysis, provide:
+- A realistic estimated price in LKR
+- Your confidence level (0-1)
+- Key factors that influenced your estimate
+- Brief reasoning for your price determination
+
+Format your response as a JSON object with these fields:
+{{
+    "estimated_price": <price_in_lkr>,
+    "confidence": <0_to_1>,
+    "reasoning": "<brief_explanation>",
+    "key_factors": ["factor1", "factor2", "factor3"]
+}}
+
+Remember: Provide realistic Sri Lankan market prices. Houses typically range from LKR 5M-50M+, apartments from LKR 3M-30M+, depending on location and features.
+"""
+
+            # Get AI response
+            response = self.model.generate_content(prompt)
+            ai_result = self._parse_ai_response(response.text)
+            
+            # Generate comparable properties based on AI estimate
+            comps = self._generate_comps(features, ai_result['estimated_price'])
+            
+            return {
+                "estimated_price": ai_result['estimated_price'],
+                "confidence": ai_result['confidence'],
+                "features_used": list(features.keys()),
+                "comps": comps,
+                "currency": "LKR",
+                "price_per_sqft": round(ai_result['estimated_price'] / features.get('area', 1000), 2),
+                "reasoning": ai_result.get('reasoning', ''),
+                "key_factors": ai_result.get('key_factors', [])
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in AI price estimation: {e}")
+            return self._fallback_estimate_price(features)
+
+    def _format_property_details(self, features: Dict) -> str:
+        """Format property features into readable text for AI analysis"""
+        details = []
+        
+        # Basic property info
+        if 'area' in features:
+            details.append(f"Area: {features['area']} sq ft")
+        if 'beds' in features:
+            details.append(f"Bedrooms: {features['beds']}")
+        if 'baths' in features:
+            details.append(f"Bathrooms: {features['baths']}")
+        if 'property_type' in features:
+            details.append(f"Property Type: {features['property_type']}")
+        
+        # Location details
+        if 'city' in features:
+            details.append(f"City: {features['city']}")
+        if 'district' in features:
+            details.append(f"District: {features['district']}")
+        
+        # Additional features
+        if 'year_built' in features:
+            details.append(f"Year Built: {features['year_built']}")
+        if 'land_size' in features and features['land_size'] > 0:
+            details.append(f"Land Size: {features['land_size']} sq ft")
+        if 'asking_price' in features and features['asking_price'] > 0:
+            details.append(f"Asking Price: LKR {features['asking_price']:,}")
+        
+        return "\n".join(details)
+
+    def _parse_ai_response(self, response_text: str) -> Dict:
+        """Parse AI response and extract price estimation data"""
+        try:
+            # Try to extract JSON from the response
+            import json
+            import re
+            
+            # Look for JSON object in the response
+            json_match = re.search(r'\{[^{}]*\}', response_text)
+            if json_match:
+                json_str = json_match.group()
+                result = json.loads(json_str)
+                
+                # Validate and clean the result
+                estimated_price = float(result.get('estimated_price', 0))
+                confidence = max(0.1, min(0.95, float(result.get('confidence', 0.5))))
+                
+                return {
+                    'estimated_price': estimated_price,
+                    'confidence': confidence,
+                    'reasoning': result.get('reasoning', ''),
+                    'key_factors': result.get('key_factors', [])
+                }
+            else:
+                # Fallback: try to extract price from text
+                price_match = re.search(r'LKR\s*([\d,]+)', response_text)
+                if price_match:
+                    estimated_price = float(price_match.group(1).replace(',', ''))
+                    return {
+                        'estimated_price': estimated_price,
+                        'confidence': 0.6,
+                        'reasoning': 'Extracted from AI response text',
+                        'key_factors': ['AI analysis']
+                    }
+                
+        except Exception as e:
+            logger.error(f"Error parsing AI response: {e}")
+        
+        # Ultimate fallback
+        return {
+            'estimated_price': 15000000,  # Default 15M LKR
+            'confidence': 0.3,
+            'reasoning': 'AI response parsing failed, using default estimate',
+            'key_factors': ['Fallback estimate']
+        }
+
+    def _fallback_estimate_price(self, features: Dict) -> Dict:
+        """
+        Fallback price estimation when AI is not available
+        Uses basic reasoning without hardcoded formulas
+        """
+        # Extract basic features
+        area = features.get('area', 1000)
+        city = features.get('city', 'Unknown')
+        property_type = features.get('property_type', 'House')
+        
+        # Simple reasoning-based estimation ranges
+        base_estimates = {
+            'Colombo': {'House': (30000, 60000), 'Apartment': (25000, 45000)},
+            'Kandy': {'House': (20000, 40000), 'Apartment': (18000, 35000)},
+            'Galle': {'House': (18000, 35000), 'Apartment': (15000, 30000)},
+            'default': {'House': (15000, 30000), 'Apartment': (12000, 25000)}
         }
         
-        base_multiplier = city_multipliers.get(city, 1.0)
+        # Get price range for the city and property type
+        city_data = base_estimates.get(city, base_estimates['default'])
+        price_range = city_data.get(property_type, city_data.get('House', (15000, 30000)))
         
-        # District-specific adjustments for Colombo
-        if city == 'Colombo' and district:
-            district_multipliers = {
-                'Colombo 1': 2.2,   # Fort - prime business
-                'Colombo 2': 2.0,   # Slave Island
-                'Colombo 3': 1.9,   # Kollupitiya
-                'Colombo 4': 1.8,   # Bambalapitiya
-                'Colombo 5': 1.7,   # Havelock Town
-                'Colombo 6': 1.6,   # Wellawatte
-                'Colombo 7': 2.1,   # Cinnamon Gardens
-                'Colombo 8': 1.5,   # Borella
-                'Colombo 9': 1.4,   # Dematagoda
-                'Colombo 10': 1.3,  # Maradana
-                'Colombo 11': 1.2,  # Pettah
-                'Colombo 12': 1.1,  # Peliyagoda
-                'Colombo 13': 1.0,  # Wattala
-                'Colombo 14': 0.9,  # Grandpass
-                'Colombo 15': 0.8   # Modara
-            }
-            if district in district_multipliers:
-                return district_multipliers[district]
+        # Estimate based on area and mid-range price per sqft
+        avg_price_per_sqft = (price_range[0] + price_range[1]) / 2
+        estimated_price = area * avg_price_per_sqft
         
-        # Special area adjustments for other cities
-        if city == 'Kandy' and district:
-            kandy_districts = {
-                'Peradeniya': 1.5,   # University area
-                'Katugastota': 1.3,  # Commercial area
-                'Mahaiyawa': 1.2,    # Residential area
-                'Asgiriya': 1.4,     # Temple area
-                'Malwatte': 1.4      # Temple area
-            }
-            if district in kandy_districts:
-                return kandy_districts[district]
+        # Generate confidence and comparables
+        confidence = self._calculate_confidence(features)
+        comps = self._generate_comps(features, estimated_price)
         
-        if city == 'Galle' and district:
-            galle_districts = {
-                'Galle Fort': 1.6,      # UNESCO heritage
-                'Unawatuna': 1.5,       # Beach area
-                'Hikkaduwa': 1.4,       # Beach area
-                'Mirissa': 1.5,          # Beach area
-                'Weligama': 1.4          # Beach area
-            }
-            if district in galle_districts:
-                return galle_districts[district]
-        
-        return base_multiplier
-    
-    def _get_property_type_multiplier(self, property_type: str) -> float:
-        """Get property type multiplier for Sri Lankan market"""
-        type_multipliers = {
-            'House': 1.0,           # Base type
-            'Apartment': 0.9,        # Generally cheaper per sqft
-            'Commercial': 1.2,       # Higher value for business
-            'Land': 0.7,             # Raw land
-            'Tea Estate': 0.8,       # Agricultural
-            'Villa': 1.3,            # Luxury houses
-            'Penthouse': 1.4,        # Premium apartments
-            'Office': 1.3,           # Commercial office
-            'Shop': 1.1,             # Retail space
-            'Hotel': 1.5             # Hospitality
+        return {
+            "estimated_price": round(estimated_price, 2),
+            "confidence": confidence,
+            "features_used": list(features.keys()),
+            "comps": comps,
+            "currency": "LKR",
+            "price_per_sqft": round(estimated_price / area, 2),
+            "reasoning": "Fallback estimation based on area and location",
+            "key_factors": ["Area", "Location", "Property Type"]
         }
-        return type_multipliers.get(property_type, 1.0)
-    
+
     def _calculate_confidence(self, features: Dict) -> float:
         """Calculate confidence based on feature completeness for Sri Lankan market"""
         required_features = ['area', 'beds', 'baths', 'year_built', 'city']
