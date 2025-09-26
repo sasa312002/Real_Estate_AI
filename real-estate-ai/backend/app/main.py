@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import settings
-from app.api import auth, query, feedback
+from app.api import auth, query, feedback, payments
 from app.db.mongodb import connect_to_mongo, close_mongo_connection
 import logging
 
@@ -30,6 +30,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(query.router)
 app.include_router(feedback.router)
+app.include_router(payments.router)
 
 @app.on_event("startup")
 async def startup_event():

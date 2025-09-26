@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { authAPI } from '../services/api'
+import { authAPI, paymentsAPI } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import { Check } from 'lucide-react'
 
@@ -34,6 +34,19 @@ export default function Plans() {
       try {
         const res = await authAPI.plans()
         setPlans(res.data.plans)
+        // If returning from Stripe success, verify and refresh
+        const params = new URLSearchParams(window.location.search)
+        const sessionId = params.get('session_id')
+        const success = params.get('success')
+        if (success && sessionId) {
+          try {
+            await paymentsAPI.verifySession(sessionId)
+            window.history.replaceState({}, document.title, '/plans')
+            window.location.reload()
+          } catch (err) {
+            // ignore verification errors here
+          }
+        }
       } catch (e) {
         setError(e.response?.data?.detail || 'Failed to load plans')
       } finally {
@@ -51,11 +64,18 @@ export default function Plans() {
     setUpgrading(plan)
     setMessage('')
     try {
-      await authAPI.upgrade(plan)
-      // Force refresh of user metadata by calling /auth/me
-      const me = await authAPI.me()
-      // patch user object locally (AuthContext currently lacks setter exposure; rely on reload)
-      window.location.href = '/plans' // simple reload to refresh context
+      if (plan === 'free') {
+        await authAPI.upgrade(plan)
+        window.location.href = '/plans'
+        return
+      }
+      // Paid plans: create Stripe Checkout session and redirect
+      const res = await paymentsAPI.createCheckout(plan)
+      const url = res.data?.url
+      if (!url) {
+        throw new Error('No checkout URL returned')
+      }
+      window.location.href = url
     } catch (e) {
       setMessage(e.response?.data?.detail || 'Upgrade failed')
     } finally {
@@ -110,7 +130,7 @@ export default function Plans() {
                 onClick={() => handleUpgrade(key)}
                 className={`w-full py-3 rounded-lg font-semibold text-sm transition-colors ${isCurrent ? 'bg-gray-200 dark:bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white'} disabled:opacity-60`}
               >
-                {isCurrent ? 'Current Plan' : upgrading === key ? 'Updating...' : 'Choose Plan'}
+                {isCurrent ? 'Current Plan' : upgrading === key ? 'Redirecting...' : 'Choose Plan'}
               </button>
             </div>
           )
