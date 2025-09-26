@@ -50,7 +50,6 @@ const Header = () => {
                       {user?.username}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Premium User
                     </div>
                   </div>
                 </div>
