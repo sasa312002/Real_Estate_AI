@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     
     # Security
     min_password_length: int = 8
+
+    # Payments
+    stripe_secret_key: str = ""
+    stripe_success_url: str = ""
+    stripe_cancel_url: str = ""
     
     class Config:
         env_file = ".env"
