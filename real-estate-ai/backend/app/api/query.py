@@ -115,6 +115,9 @@ async def analyze_property(
         # Increment usage
         try:
             current_user.analyses_used = used + 1
+            # Check if limit is now exhausted and update purchase eligibility
+            if current_user.analyses_used >= limit:
+                current_user.can_purchase_new_plan = True
             await current_user.save()
         except Exception as e:
             logger.error(f"Failed to increment analyses_used: {e}")

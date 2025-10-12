@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
 from typing import Dict
+from datetime import datetime
 from app.models.mongodb_models import User
 from app.core.security import verify_password, get_password_hash, create_access_token, verify_token
 from app.core.config import settings
@@ -33,6 +34,8 @@ class UserResponse(BaseModel):
     analyses_used: int
     analyses_limit: int
     analyses_remaining: int
+    can_purchase_new_plan: bool
+    is_subscription_active: bool
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -209,7 +212,9 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         plan=current_user.plan,
         analyses_used=current_user.analyses_used,
         analyses_limit=limit,
-        analyses_remaining=max(limit - current_user.analyses_used, 0)
+        analyses_remaining=max(limit - current_user.analyses_used, 0),
+        can_purchase_new_plan=current_user.can_purchase_plan(PLAN_LIMITS),
+        is_subscription_active=getattr(current_user, 'is_subscription_active', False)
     )
 
 
@@ -227,13 +232,30 @@ class PlansResponse(BaseModel):
 
 @router.post("/upgrade", response_model=UpgradePlanResponse)
 async def upgrade_plan(req: UpgradePlanRequest, current_user: User = Depends(get_current_user)):
-    """Upgrade (or downgrade) the user's plan. Analyses_used persists; only limit changes.
+    """Upgrade (or downgrade) the user's plan. For paid plans, user must exhaust current limit first.
     If moving to a lower plan and usage exceeds limit, further analyses blocked until new cycle (future logic).
     """
     plan = req.plan.lower()
     if plan not in PLAN_LIMITS:
         raise HTTPException(status_code=400, detail="Invalid plan selected")
-    current_user.plan = plan
+    
+    # For paid plans, check if user can purchase (limit must be exhausted)
+    if plan in ("standard", "premium") and not current_user.can_purchase_plan(PLAN_LIMITS):
+        limit = PLAN_LIMITS.get(current_user.plan, 0)
+        remaining = max(limit - current_user.analyses_used, 0)
+        raise HTTPException(
+            status_code=400, 
+            detail=f"You can only purchase a new plan after exhausting your current {current_user.plan} plan limit. You have {remaining} analyses remaining."
+        )
+    
+    # Reset subscription if purchasing a paid plan
+    if plan in ("standard", "premium"):
+        current_user.reset_subscription(plan, PLAN_LIMITS)
+    else:
+        # For free plan, just update the plan
+        current_user.plan = plan
+        current_user.updated_at = datetime.utcnow()
+    
     await current_user.save()
     limit = PLAN_LIMITS[plan]
     return UpgradePlanResponse(
