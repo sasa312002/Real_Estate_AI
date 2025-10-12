@@ -88,6 +88,15 @@ const HomePage = () => {
                     >
                       Start New Analysis
                     </Link>
+                    {/* Analyze Location button - shown only to Standard and Premium users */}
+                    {user?.plan && ['standard', 'premium'].includes(user.plan.toLowerCase()) && (
+                      <Link
+                        to="/analyze-location"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-8 rounded-xl text-lg transition-all duration-300 transform hover:scale-105 shadow-md"
+                      >
+                        Analyze Location
+                      </Link>
+                    )}
                     <Link
                       to="/history"
                       className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold py-3 px-8 rounded-xl text-lg transition-colors duration-200"
@@ -285,6 +294,14 @@ const HomePage = () => {
               >
                 Start New Analysis
               </Link>
+              {isAuthenticated && user?.plan && ['standard', 'premium'].includes(user.plan.toLowerCase()) && (
+                <Link
+                  to="/analyze-location"
+                  className="ml-4 bg-emerald-600 text-white hover:bg-emerald-700 font-semibold py-3 px-6 rounded-xl text-lg transition-all duration-300 shadow-md"
+                >
+                  Analyze Location
+                </Link>
+              )}
             </>
           ) : (
             <>

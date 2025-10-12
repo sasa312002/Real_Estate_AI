@@ -139,6 +139,17 @@ function Sidebar({ isOpen, onToggle, className = '' }) {
     }
   }
 
+  const handleAnalyzeLocationNav = () => {
+    const plan = user?.plan?.toLowerCase()
+    if (plan && (plan === 'standard' || plan === 'premium')) {
+      handleNavigation('/analyze-location')
+    } else {
+      // Redirect to plans with a message
+      navigate('/plans?msg=' + encodeURIComponent('Analyze Location is available on Standard and Premium plans. Please upgrade your plan.'))
+      if (window.innerWidth < 768) onToggle()
+    }
+  }
+
   const handleChatSelect = (chatId) => {
     navigate(`/history?select=${chatId}`)
     if (window.innerWidth < 768) {
@@ -248,6 +259,22 @@ function Sidebar({ isOpen, onToggle, className = '' }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
               </svg>
               {!isCollapsed && <span className="font-medium transition-opacity duration-300">Home</span>}
+            </button>
+
+            <button
+              onClick={handleAnalyzeLocationNav}
+              className={`group w-full flex items-center ${isCollapsed ? 'justify-start pl-3 pr-3 py-3' : 'space-x-3 px-4 py-3'} rounded-xl transition-all duration-200 transform hover:scale-[1.02] ${
+                isActive('/analyze-location')
+                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700 shadow-sm'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-blue-600 dark:hover:text-blue-400'
+              }`}
+              title={isCollapsed ? 'Analyze Location' : ''}
+            >
+              <svg className={`${isCollapsed ? 'w-6 h-6' : 'w-5 h-5'} transition-all duration-300`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              {!isCollapsed && <span className="font-medium transition-opacity duration-300">Analyze Location</span>}
             </button>
             
             <button

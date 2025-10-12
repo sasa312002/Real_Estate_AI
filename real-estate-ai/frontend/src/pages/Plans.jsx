@@ -47,6 +47,10 @@ export default function Plans() {
             // ignore verification errors here
           }
         }
+        const msg = params.get('msg')
+        if (msg) {
+          setMessage(msg)
+        }
       } catch (e) {
         setError(e.response?.data?.detail || 'Failed to load plans')
       } finally {

@@ -46,6 +46,28 @@ class QueryHistory(BaseModel):
     created_at: str
     has_response: bool
 
+class LocationRequest(BaseModel):
+    lat: float
+    lon: float
+    city: Optional[str] = None
+    district: Optional[str] = None
+
+class LocationAmenity(BaseModel):
+    name: str
+    lat: float
+    lon: float
+    distance_km: float
+
+class LocationAnalysisResponse(BaseModel):
+    score: float
+    summary: str
+    bullets: List[str]
+    provenance: List[Dict[str, Any]]
+    risk: Dict[str, Any]
+    nearby: Dict[str, List[LocationAmenity]]
+    facility_counts: Optional[Dict[str, int]] = None
+    facility_summary: Optional[str] = None
+
 @router.post("/query", response_model=PropertyResponse)
 async def analyze_property(
     property_query: PropertyQuery,
@@ -148,6 +170,44 @@ async def analyze_property(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error during property analysis"
         )
+
+@router.post("/analyze_location", response_model=LocationAnalysisResponse)
+async def analyze_location_endpoint(
+    req: LocationRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Analyze a location by coordinates, return risk and nearby amenities.
+    Access limited to Standard and Premium users.
+    """
+    try:
+        plan = getattr(current_user, 'plan', 'free')
+        if plan not in ("standard", "premium"):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Location analysis available for Standard and Premium plans only")
+
+        # Base location analysis
+        base = location_agent.analyze_location(req.lat, req.lon, req.city, req.district)
+        # Nearby amenities
+        nearby = await location_agent.get_nearby_amenities(req.lat, req.lon)
+        # Risk via LLM (fallbacks internally)
+        risk = location_agent.llm_analyze_location_risk(req.lat, req.lon, req.city, req.district, nearby)
+        # Facility group counts summary under 1km
+        counts_summary = location_agent.summarize_facility_counts(nearby, radius_km=1.0)
+
+        return LocationAnalysisResponse(
+            score=base.get('score', 0.5),
+            summary=base.get('summary', ''),
+            bullets=base.get('bullets', []),
+            provenance=base.get('provenance', []),
+            risk=risk,
+            nearby=nearby,
+            facility_counts=counts_summary.get('counts'),
+            facility_summary=counts_summary.get('summary')
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in analyze_location_endpoint: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error during location analysis")
 
 @router.get("/history", response_model=List[QueryHistory])
 async def get_query_history(
