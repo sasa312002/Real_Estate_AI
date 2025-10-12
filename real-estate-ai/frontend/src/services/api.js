@@ -50,7 +50,9 @@ export const propertyAPI = {
   history: (limit = 10) => api.get(`/property/history?limit=${limit}`),
   details: (queryId) => api.get(`/property/details/${queryId}`),
   deleteHistory: (queryId) => api.delete(`/property/history/${queryId}`),
-  suggestTags: (text) => api.get(`/property/suggest_tags`, { params: { q: text } })
+  suggestTags: (text) => api.get(`/property/suggest_tags`, { params: { q: text } }),
+  analyzeLocation: ({ lat, lon, city = null, district = null }) =>
+    api.post('/property/analyze_location', { lat, lon, city, district })
 }
 
 export const feedbackAPI = {

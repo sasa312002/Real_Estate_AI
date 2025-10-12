@@ -8,6 +8,7 @@ import Signup from './pages/Signup'
 import Query from './pages/Query'
 import History from './pages/History'
 import Plans from './pages/Plans'
+import AnalyzeLocation from './pages/AnalyzeLocation'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import './App.css'
@@ -83,6 +84,21 @@ function AppContent() {
             <Navigate to="/login" replace />
           )
         } 
+      />
+      <Route
+        path="/analyze-location"
+        element={
+          isAuthenticated ? (
+            // Additional role check is handled inside the page which will redirect to /plans if unauthorized
+            <SidebarLayout showSidebar={true}>
+              <div className="h-full">
+                <AnalyzeLocation />
+              </div>
+            </SidebarLayout>
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
       />
       <Route
         path="/plans"
