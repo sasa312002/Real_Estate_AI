@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { MapContainer, TileLayer, Marker, useMapEvents, Popup } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, useMapEvents, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -40,6 +40,17 @@ function LocationMarker({ position, onLocationSelect }) {
 function LocationPicker({ selectedLocation, onLocationChange, city, className = '' }) {
   const [mapCenter, setMapCenter] = useState([6.9271, 79.8612]) // Default to Colombo
   const [zoom, setZoom] = useState(13)
+  
+  // Helper to recenter the React Leaflet map when center/zoom state changes
+  function RecenterOnChange({ center, zoom }) {
+    const map = useMap()
+    useEffect(() => {
+      if (center && Array.isArray(center) && center.length === 2) {
+        map.setView(center, zoom)
+      }
+    }, [center?.[0], center?.[1], zoom])
+    return null
+  }
 
   // Extended Sri Lanka city coordinates (approximate)
   const cityCoordinates = {
@@ -130,11 +141,44 @@ function LocationPicker({ selectedLocation, onLocationChange, city, className = 
     'mawanella': [7.2528, 80.4381]
   }
 
+  // Try to find coordinates for a typed city with normalization and fuzzy matching
+  const lookupCityCoordinates = (input) => {
+    if (!input) return null
+    let key = String(input).toLowerCase().trim()
+    // Normalize common variations
+    key = key.replace(/\s+/g, ' ')
+    const variants = new Set([
+      key,
+      key.replace(/-/g, ' '),
+      key.replace(/\s/g, '-'),
+      key.replace(/\s*[-_]\s*/g, ' '),
+    ])
+
+    // Handle Colombo district numbers like "Colombo 7", "Colombo 07" → map to "colombo"
+    const colomboMatch = key.match(/^colombo\s*0?\d+$/)
+    if (colomboMatch) variants.add('colombo')
+
+    // Exact match on variants
+    for (const v of variants) {
+      if (cityCoordinates[v]) return cityCoordinates[v]
+    }
+
+    // Prefix match
+    const keys = Object.keys(cityCoordinates)
+    const prefix = keys.find(k => k.startsWith(key))
+    if (prefix) return cityCoordinates[prefix]
+
+    // Includes match as a last resort
+    const includes = keys.find(k => k.includes(key))
+    if (includes) return cityCoordinates[includes]
+
+    return null
+  }
+
   // Update map center when city changes
   useEffect(() => {
     if (city) {
-      const cityKey = city.toLowerCase()
-      const coordinates = cityCoordinates[cityKey]
+      const coordinates = lookupCityCoordinates(city)
       if (coordinates) {
         setMapCenter(coordinates)
         setZoom(13)
@@ -188,13 +232,15 @@ function LocationPicker({ selectedLocation, onLocationChange, city, className = 
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
+          {/* Recenter map view on city change */}
+          <RecenterOnChange center={mapCenter} zoom={zoom} />
           {/* Primary user-selected marker */}
           <LocationMarker
             position={selectedLocation}
             onLocationSelect={handleLocationSelect}
           />
-          {!selectedLocation && city && cityCoordinates[city.toLowerCase()] && (
-            <Marker position={cityCoordinates[city.toLowerCase()]} icon={selectedLocationIcon}>
+          {!selectedLocation && city && lookupCityCoordinates(city) && (
+            <Marker position={lookupCityCoordinates(city)} icon={selectedLocationIcon}>
               <Popup>
                 {city.charAt(0).toUpperCase() + city.slice(1)} (City Center)<br/>Click elsewhere to refine.
               </Popup>
