@@ -20,7 +20,7 @@ class LocationAgent:
         try:
             if settings.gemini_api_key:
                 genai.configure(api_key=settings.gemini_api_key)
-                self.llm = genai.GenerativeModel('gemini-pro')
+                self.llm = genai.GenerativeModel('gemini-2.5-flash')
                 logger.info("Gemini AI initialized in LocationAgent")
             else:
                 logger.warning("No Gemini API key provided; LocationAgent will use fallback risk analysis")

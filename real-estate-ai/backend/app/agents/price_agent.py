@@ -14,11 +14,11 @@ class PriceAgent:
             try:
                 # Try different model names to find one that works
                 available_models = [
-                    'gemini-1.5-flash',
-                    'gemini-1.5-pro',
+                    'gemini-2.5-flash',
+                    'gemini-2.5-pro',
                     'gemini-2.0-flash',
-                    'gemini-pro-latest',
-                    'gemini-flash-latest'
+                    'gemini-flash-latest',
+                    'gemini-pro-latest'
                 ]
                 self.model = None
                 for model_name in available_models:
