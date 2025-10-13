@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { propertyAPI } from '../services/api'
-import { Clock, Search, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
+import { Clock, Search, ChevronDown, ChevronUp, ExternalLink, Trash2, Download } from 'lucide-react'
+import jsPDF from 'jspdf'
 import MapPreview from '../components/MapPreview'
 import { useLocation } from 'react-router-dom'
 
@@ -117,6 +118,82 @@ function History() {
     return null
   }
 
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this history item?')) return
+    try {
+      await propertyAPI.deleteHistory(id)
+      setItems(prev => prev.filter(i => i.id !== id))
+      // clean details cache
+      setDetails(prev => {
+        const copy = { ...prev }
+        delete copy[id]
+        return copy
+      })
+      if (openId === id) setOpenId(null)
+      if (selectedId === id) setSelectedId(null)
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Failed to delete')
+    }
+  }
+
+  const handleDownloadPdf = async (id) => {
+    try {
+      const detail = details[id] || (await propertyAPI.details(id).then(r => r.data))
+      if (!details[id]) setDetails(prev => ({ ...prev, [id]: detail }))
+
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+      const margin = 40
+      let y = margin
+      const line = (text, opts={}) => {
+        const maxWidth = 515
+        const fontSize = opts.size || 12
+        doc.setFontSize(fontSize)
+        const lines = doc.splitTextToSize(text ?? '', maxWidth)
+        lines.forEach(l => {
+          doc.text(l, margin, y)
+          y += fontSize + 4
+          if (y > 780) { doc.addPage(); y = margin }
+        })
+      }
+
+      doc.setFontSize(16)
+      doc.text('Real Estate Analysis', margin, y); y += 24
+      line(`Query: ${items.find(i => i.id === id)?.query_text || ''}`)
+      line(`City: ${items.find(i => i.id === id)?.city || '-'}`)
+      line(`Date: ${new Date(items.find(i => i.id === id)?.created_at || Date.now()).toLocaleString()}`)
+      y += 8
+
+      doc.setFontSize(14)
+      doc.text('Summary', margin, y); y += 18
+      line(detail.why || '-')
+
+      y += 6
+      doc.setFontSize(14)
+      doc.text('Key Metrics', margin, y); y += 16
+      line(`Estimated Price: ${formatCurrency(detail.estimated_price, detail)}`)
+      line(`Location Score: ${formatPercentage(detail.location_score)}`)
+      line(`Deal Verdict: ${detail.deal_verdict || '-'}`)
+      line(`Confidence: ${detail.confidence != null ? (detail.confidence * 100).toFixed(0) + '%' : '-'}`)
+
+      if (Array.isArray(detail.provenance) && detail.provenance.length > 0) {
+        y += 6
+        doc.setFontSize(14)
+        doc.text('Sources', margin, y); y += 16
+        detail.provenance.forEach((raw, idx) => {
+          const p = normalizeProv(raw)
+          line(`${idx + 1}. ${p.title}`)
+          if (p.snippet) line(`   ${p.snippet}`)
+          if (p.link) line(`   ${p.link}`)
+          y += 4
+        })
+      }
+
+      doc.save(`analysis_${id}.pdf`)
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Failed to generate PDF')
+    }
+  }
+
   return (
     <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
       {/* Header */}
@@ -170,6 +247,20 @@ function History() {
                   <span className={`text-xs px-2 py-1 rounded-full border ${h.has_response ? 'text-green-700 bg-green-50 border-green-200' : 'text-yellow-700 bg-yellow-50 border-yellow-200'}`}>
                     {h.has_response ? 'Analyzed' : 'Pending'}
                   </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDownloadPdf(h.id) }}
+                    title="Download PDF"
+                    className="p-1 text-gray-500 hover:text-blue-600"
+                  >
+                    <Download className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(h.id) }}
+                    title="Delete"
+                    className="p-1 text-gray-500 hover:text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                   {openId === h.id ? <ChevronUp className="h-4 w-4 text-gray-500" /> : <ChevronDown className="h-4 w-4 text-gray-500" />}
                 </div>
               </div>

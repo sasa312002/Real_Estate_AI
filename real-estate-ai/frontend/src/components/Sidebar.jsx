@@ -88,8 +88,9 @@ function Sidebar({ isOpen, onToggle, className = '' }) {
         // Adapt to structure: each item has id, query_text, created_at
         const adapted = res.data.map(h => ({
           id: h.id,
-          title: h.query_text?.slice(0, 60) || 'Query',
-            // preview left empty or truncated further text
+          // Show city name primarily; fallback to query snippet
+          title: h.city || (h.query_text?.slice(0, 60) || 'Query'),
+          // preview left empty or truncated further text
           preview: h.query_text?.length > 60 ? h.query_text.slice(60, 120) + '...' : '',
           date: new Date(h.created_at).toLocaleDateString(),
           isActive: false,
@@ -110,7 +111,7 @@ function Sidebar({ isOpen, onToggle, className = '' }) {
       const res = await propertyAPI.history(5)
       const adapted = res.data.map(h => ({
         id: h.id,
-        title: h.query_text?.slice(0, 60) || 'Query',
+        title: h.city || (h.query_text?.slice(0, 60) || 'Query'),
         preview: h.query_text?.length > 60 ? h.query_text.slice(60, 120) + '...' : '',
         date: new Date(h.created_at).toLocaleDateString(),
         isActive: false,
