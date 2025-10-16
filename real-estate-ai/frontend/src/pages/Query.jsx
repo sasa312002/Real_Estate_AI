@@ -114,6 +114,17 @@ function Query() {
     }))
   }
 
+  // Form validity: All except description must be filled
+  const isFormValid = (
+    cityValid &&
+    (formData.features.city && formData.features.city.trim() !== '') &&
+    formData.features.asking_price !== '' &&
+    formData.features.beds !== '' &&
+    formData.features.baths !== '' &&
+    formData.features.area !== '' &&
+    formData.features.year_built !== ''
+  )
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -133,13 +144,23 @@ function Query() {
         }
       })
 
-      const result = await propertyAPI.query({
+      // Run both the property query (price/deal) and an analyze location request
+      // so the Property Analysis page can show the same location insights as the Analyze Location page.
+      const analyzePromise = (features.lat != null && features.lon != null)
+        ? propertyAPI.analyzeLocation({ lat: features.lat, lon: features.lon })
+        : Promise.resolve({ data: null })
+
+      const queryPromise = propertyAPI.query({
         query: formData.query,
         features,
         tags: formData.tags
       })
 
-      setResponse(result.data)
+      const [anRes, qRes] = await Promise.all([analyzePromise, queryPromise])
+
+      // Merge analyze-location output into the main response so downstream components can render it
+      const merged = { ...(qRes.data || {}), analyze_location: anRes?.data || null }
+      setResponse(merged)
     } catch (err) {
       const status = err.response?.status
       const detail = err.response?.data?.detail
@@ -277,13 +298,14 @@ function Query() {
               <div>
                 <label htmlFor="beds" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                   <Bed className="inline w-5 h-5 mr-2 text-blue-600" />
-                  Bedrooms
+                  Bedrooms *
                 </label>
                 <input
                   type="number"
                   id="beds"
                   min="0"
                   max="20"
+                  required
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   placeholder="e.g., 3"
                   value={formData.features.beds}
@@ -294,13 +316,14 @@ function Query() {
               <div>
                 <label htmlFor="baths" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                   <Bath className="inline w-5 h-5 mr-2 text-blue-600" />
-                  Bathrooms
+                  Bathrooms *
                 </label>
                 <input
                   type="number"
                   id="baths"
                   min="0"
                   max="20"
+                  required
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   placeholder="e.g., 2"
                   value={formData.features.baths}
@@ -311,12 +334,13 @@ function Query() {
               <div>
                 <label htmlFor="area" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                   <Ruler className="inline w-5 h-5 mr-2 text-blue-600" />
-                  Area (sq ft)
+                  Area (sq ft) *
                 </label>
                 <input
                   type="number"
                   id="area"
                   min="0"
+                  required
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   placeholder="e.g., 1,200"
                   value={formData.features.area}
@@ -327,7 +351,7 @@ function Query() {
               <div>
                 <label htmlFor="year_built" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                   <Calendar className="inline w-5 h-5 mr-2 text-blue-600" />
-                  Year Built
+                  Year Built *
                 </label>
                 <input
                   type="number"
@@ -335,6 +359,7 @@ function Query() {
                   min="1800"
                   // Only allow current year or past years
                   max={currentYear}
+                  required
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   placeholder="e.g., 2015"
                   value={formData.features.year_built}
@@ -419,7 +444,7 @@ function Query() {
 
             <button
               type="submit"
-              disabled={loading || !formData.features.city || !formData.features.asking_price || !cityValid}
+              disabled={loading || !isFormValid}
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
             >
               {loading ? (

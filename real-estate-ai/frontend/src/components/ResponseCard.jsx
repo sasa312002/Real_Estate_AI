@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { feedbackAPI } from '../services/api'
 import { ThumbsUp, ThumbsDown, ExternalLink, FileText } from 'lucide-react'
 import MapPreview from './MapPreview'
+import AnalyzeLocationView from './AnalyzeLocationView'
 
 function ResponseCard({ response }) {
   const [feedback, setFeedback] = useState(null)
@@ -100,6 +101,10 @@ function ResponseCard({ response }) {
           </div>
         </div>
       </div>
+
+      {response.analyze_location && (
+        <AnalyzeLocationView result={response.analyze_location} />
+      )}
       {/* Provenance */}
       {Array.isArray(response.provenance) && response.provenance.length > 0 && (
         <div>

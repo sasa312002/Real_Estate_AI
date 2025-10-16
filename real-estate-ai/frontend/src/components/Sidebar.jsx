@@ -285,10 +285,10 @@ function Sidebar({ isOpen, onToggle, className = '' }) {
                   ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700 shadow-sm'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-blue-600 dark:hover:text-blue-400'
               }`}
-              title={isCollapsed ? 'AI Analysis' : ''}
+              title={isCollapsed ? 'Property Analysis' : ''}
             >
               <MessageSquare className={`${isCollapsed ? 'w-6 h-6' : 'w-5 h-5'} transition-all duration-300`} />
-              {!isCollapsed && <span className="font-medium transition-opacity duration-300">AI Analysis</span>}
+              {!isCollapsed && <span className="font-medium transition-opacity duration-300">Property Analysis</span>}
             </button>
             
             <button
