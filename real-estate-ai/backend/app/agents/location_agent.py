@@ -99,6 +99,41 @@ class LocationAgent:
                 data = resp.json()
             elements = data.get('elements', [])
 
+            # If no elements were returned (sparse area or Overpass shortfall), retry once with larger radius
+            if not elements:
+                logger.info("Overpass returned no elements; retrying with larger radius")
+                amenity_radius2 = amenity_radius * 2
+                road_radius2 = road_radius * 2
+                query2 = f"""
+                [out:json];
+                (
+                  node["amenity"="hospital"](around:{amenity_radius2},{lat},{lon});
+                  way["amenity"="hospital"](around:{amenity_radius2},{lat},{lon});
+                  node["amenity"="school"](around:{amenity_radius2},{lat},{lon});
+                  way["amenity"="school"](around:{amenity_radius2},{lat},{lon});
+                  node["amenity"="university"](around:{amenity_radius2},{lat},{lon});
+                  way["amenity"="university"](around:{amenity_radius2},{lat},{lon});
+                  node["amenity"="police"](around:{amenity_radius2},{lat},{lon});
+                  node["amenity"="fire_station"](around:{amenity_radius2},{lat},{lon});
+                  node["amenity"="bus_station"](around:{amenity_radius2},{lat},{lon});
+                  node["railway"="station"](around:{amenity_radius2},{lat},{lon});
+                  way["highway"~"motorway|trunk|primary"](around:{road_radius2},{lat},{lon});
+                                    way["waterway"~"river|stream|canal"](around:{road_radius2},{lat},{lon});
+                                    way["natural"="water"](around:{road_radius2},{lat},{lon});
+                                    way["railway"~"rail|light_rail|subway"](around:{road_radius2},{lat},{lon});
+                                    way["landuse"="industrial"](around:{road_radius2},{lat},{lon});
+                );
+                out center 40;
+                """
+                try:
+                    async with httpx.AsyncClient(timeout=20.0) as client:
+                        resp2 = await client.post(url, data={"data": query2})
+                        resp2.raise_for_status()
+                        data2 = resp2.json()
+                    elements = data2.get('elements', [])
+                except Exception as e2:
+                    logger.warning(f"Overpass retry failed: {e2}")
+
             def haversine(lat1, lon1, lat2, lon2):
                 from math import radians, sin, cos, sqrt, atan2
                 R = 6371.0

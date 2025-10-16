@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { propertyAPI } from '../services/api'
+import { propertyAPI, authAPI } from '../services/api'
 import ResponseCard from '../components/ResponseCard'
 import LocationPicker from '../components/LocationPicker'
 import { Home, MapPin, Bed, Bath, Ruler, Calendar, ArrowUpRight, X } from 'lucide-react'
@@ -131,7 +131,7 @@ function Query() {
     setError('')
     setResponse(null)
 
-    try {
+  try {
       // Convert numeric fields
       const features = { ...formData.features }
       const numericFields = ['lat', 'lon', 'beds', 'baths', 'area', 'year_built', 'asking_price']
@@ -144,23 +144,56 @@ function Query() {
         }
       })
 
-      // Run both the property query (price/deal) and an analyze location request
-      // so the Property Analysis page can show the same location insights as the Analyze Location page.
-      const analyzePromise = (features.lat != null && features.lon != null)
-        ? propertyAPI.analyzeLocation({ lat: features.lat, lon: features.lon })
-        : Promise.resolve({ data: null })
+      const plan = user?.plan?.toLowerCase()
+      const allowedPlans = ['standard', 'premium']
 
-      const queryPromise = propertyAPI.query({
-        query: formData.query,
-        features,
-        tags: formData.tags
-      })
+      if (!allowedPlans.includes(plan)) {
+        // Free user: only run the price/deal query and mark analyze as restricted
+        const qRes = await propertyAPI.query({ query: formData.query, features, tags: formData.tags })
+        const mergedBase = { ...(qRes.data || {}), analyze_location: null, analyze_restricted: true }
+        setResponse(mergedBase)
+      } else {
+        // Allowed user: run analyze and query in parallel but don't let analyze failures block the main query
+        const analyzeCall = (features.lat != null && features.lon != null)
+          ? propertyAPI.analyzeLocation({ lat: features.lat, lon: features.lon })
+          : Promise.resolve({ data: null })
 
-      const [anRes, qRes] = await Promise.all([analyzePromise, queryPromise])
+        const queryCall = propertyAPI.query({ query: formData.query, features, tags: formData.tags })
 
-      // Merge analyze-location output into the main response so downstream components can render it
-      const merged = { ...(qRes.data || {}), analyze_location: anRes?.data || null }
-      setResponse(merged)
+        // Use allSettled so a failing analyze call won't reject the whole operation
+        const [anResSettled, qResSettled] = await Promise.allSettled([analyzeCall, queryCall])
+
+        // Ensure we still have the query result; if it failed, surface the error below
+        if (qResSettled.status !== 'fulfilled') {
+          throw qResSettled.reason
+        }
+
+        const qRes = qResSettled.value
+
+        // Defensive refresh of plan if necessary
+        let effectivePlan = plan
+        if (!allowedPlans.includes(effectivePlan)) {
+          try { const fresh = await authAPI.me(); effectivePlan = fresh.data?.plan?.toLowerCase() || effectivePlan } catch {}
+        }
+
+        const mergedBase = { ...(qRes.data || {}) }
+
+        // If analyze call succeeded and the user's plan allows it, attach it; otherwise show restricted/empty
+        if (allowedPlans.includes(effectivePlan) && anResSettled.status === 'fulfilled') {
+          mergedBase.analyze_location = anResSettled.value?.data || null
+          mergedBase.analyze_restricted = false
+        } else if (allowedPlans.includes(effectivePlan) && anResSettled.status === 'rejected') {
+          // Analyze failed but query succeeded - attach null and set a flag so UI can show a gentle message
+          mergedBase.analyze_location = null
+          mergedBase.analyze_restricted = false
+          mergedBase.analyze_error = anResSettled.reason?.response?.data?.detail || String(anResSettled.reason)
+        } else {
+          mergedBase.analyze_location = null
+          mergedBase.analyze_restricted = true
+        }
+
+        setResponse(mergedBase)
+      }
     } catch (err) {
       const status = err.response?.status
       const detail = err.response?.data?.detail
@@ -173,6 +206,9 @@ function Query() {
       setLoading(false)
     }
   }
+
+  const planLower = user?.plan?.toLowerCase()
+  const canAnalyze = ['standard', 'premium'].includes(planLower)
 
   const getVerdictColor = (verdict) => {
     switch (verdict) {
@@ -457,10 +493,16 @@ function Query() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
-                  <span>Analyze Property with AI</span>
+                  <span>{canAnalyze ? 'Analyze Property with AI' : 'Get Price & Deal (Upgrade for Location Analysis)'}</span>
                 </>
               )}
             </button>
+
+            {!canAnalyze && (
+              <div className="mt-3 text-sm text-gray-600">
+                Location analysis is available for <a href="/plans" className="text-blue-600 font-semibold">Standard</a> and <a href="/plans" className="text-purple-600 font-semibold">Premium</a> plans. Upgrade to view risk, nearby facilities and location score.
+              </div>
+            )}
           </form>
 
           {error && (

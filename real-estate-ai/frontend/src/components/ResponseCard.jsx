@@ -102,8 +102,27 @@ function ResponseCard({ response }) {
         </div>
       </div>
 
-      {response.analyze_location && (
-        <AnalyzeLocationView result={response.analyze_location} />
+      {response.analyze_restricted ? (
+        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-semibold">Location analysis is restricted on Free plan</div>
+              <div className="text-sm text-gray-600">Upgrade to Standard or Premium to view full location score, risk assessment, and nearby facilities.</div>
+            </div>
+            <a href="/plans" className="ml-4 inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold">View Plans</a>
+          </div>
+        </div>
+      ) : (
+        <>
+          {response.analyze_error && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700">
+              Location analysis failed to complete: {response.analyze_error}
+            </div>
+          )}
+          {response.analyze_location && (
+            <AnalyzeLocationView result={response.analyze_location} />
+          )}
+        </>
       )}
       {/* Provenance */}
       {Array.isArray(response.provenance) && response.provenance.length > 0 && (
