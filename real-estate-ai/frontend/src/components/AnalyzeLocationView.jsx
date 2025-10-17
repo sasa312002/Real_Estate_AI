@@ -188,7 +188,7 @@ export default function AnalyzeLocationView({ result }) {
           )}
         </div>
 
-        <div className="bg-gradient-to-br from-white to-emerald-50 border-2 border-emerald-200 rounded-2xl p-6 shadow-lg">
+  <div className="bg-gradient-to-br from-white to-emerald-50 border-2 border-emerald-200 rounded-2xl p-6 shadow-lg">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2.5 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl shadow-md">
               <Bus className="w-5 h-5 text-white" />
@@ -227,6 +227,40 @@ export default function AnalyzeLocationView({ result }) {
             </div>
           ) : (
             <p className="text-xs text-gray-500 italic">No transport hubs or major roads found nearby</p>
+          )}
+        </div>
+
+        <div className="bg-gradient-to-br from-white to-yellow-50 border-2 border-yellow-200 rounded-2xl p-6 shadow-lg">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2.5 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-xl shadow-md">
+              <Target className="w-5 h-5 text-white" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-800">Supermarkets & Pharmacies</h3>
+          </div>
+
+          {((result.nearby?.supermarkets || []).length + (result.nearby?.pharmacies || []).length) > 0 ? (
+            <div className="space-y-2">
+              {(result.nearby?.supermarkets || []).map((s, i) => (
+                <div key={`sm-${i}`} className="flex items-center justify-between p-2 bg-white rounded-lg border text-sm">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-3.5 h-3.5 text-yellow-600" />
+                    <span className="text-gray-700">{s.name}</span>
+                  </div>
+                  <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full font-semibold">{s.distance_km} km</span>
+                </div>
+              ))}
+              {(result.nearby?.pharmacies || []).map((p, i) => (
+                <div key={`ph-${i}`} className="flex items-center justify-between p-2 bg-white rounded-lg border text-sm">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-3.5 h-3.5 text-amber-600" />
+                    <span className="text-gray-700">{p.name}</span>
+                  </div>
+                  <span className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded-full font-semibold">{p.distance_km} km</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500 italic">No supermarkets or pharmacies found nearby</p>
           )}
         </div>
       </div>

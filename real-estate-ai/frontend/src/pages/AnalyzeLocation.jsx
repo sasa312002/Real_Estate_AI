@@ -76,7 +76,7 @@ export default function AnalyzeLocation() {
             </div>
             <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Analyze Location</h2>
           </div>
-          <p className="text-sm text-gray-600 ml-14">Click anywhere on the map to analyze location risk, score, and nearby amenities instantly.</p>
+          <p className="text-sm text-gray-600 ml-14"></p>
         </div>
         <div className="hidden md:flex flex-col gap-2">
           <div className="inline-flex items-center px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200 shadow-sm">
@@ -97,7 +97,7 @@ export default function AnalyzeLocation() {
             <div className="p-1.5 bg-white rounded-lg shadow-sm mr-2">
               <Target className="w-4 h-4 text-blue-600" />
             </div>
-            Click anywhere on the map to analyze
+            Click anywhere on the map to analyze location risk, score, and nearby amenities instantly.
           </div>
           {loading && (
             <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
@@ -123,7 +123,35 @@ export default function AnalyzeLocation() {
           </MapContainer>
         </div>
       </div>
-      {result && <AnalyzeLocationView result={result} />}
+      {/* Result / Loading Section */}
+      <div className="mt-6">
+        {loading ? (
+          <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-blue-50 rounded-full">
+                <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+              </div>
+              <div>
+                <div className="text-lg font-semibold text-gray-900">Analyzing location...</div>
+                <div className="text-sm text-gray-500">Fetching nearby amenities and running risk analysis. This may take a few seconds.</div>
+              </div>
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="h-36 bg-gray-100 animate-pulse rounded-lg"></div>
+              <div className="h-36 bg-gray-100 animate-pulse rounded-lg"></div>
+              <div className="h-36 bg-gray-100 animate-pulse rounded-lg"></div>
+              <div className="h-36 bg-gray-100 animate-pulse rounded-lg"></div>
+            </div>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 rounded-2xl p-6 shadow-sm border border-red-200 text-red-700">{error}</div>
+        ) : result ? (
+          <AnalyzeLocationView result={result} />
+        ) : (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 text-gray-600">Click on the map to begin analysis.</div>
+        )}
+      </div>
     </div>
   )
 }

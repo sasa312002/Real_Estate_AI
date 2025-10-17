@@ -82,6 +82,8 @@ class Response(Document):
     query_id: ObjectId
     estimated_price: Optional[float] = None
     location_score: Optional[float] = None
+    # Full analyze_location output when available (risk, nearby, facility_summary, etc.)
+    analyze_location: Optional[Dict[str, Any]] = None
     deal_verdict: str  # "Good Deal", "Fair", "Overpriced"
     why: str
     confidence: float

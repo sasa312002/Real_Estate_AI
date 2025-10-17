@@ -11,6 +11,8 @@ Write-Host "Backend will be available at: http://localhost:8000" -ForegroundColo
 
 # Prefer project-local virtual environment python if it exists
 $venvPython = Join-Path $PSScriptRoot '.venv/Scripts/python.exe'
+# Ensure Python can import the local `app` package when uvicorn spawns subprocesses
+$env:PYTHONPATH = $PSScriptRoot
 if (Test-Path $venvPython) {
 	Write-Host "Using venv interpreter: $venvPython" -ForegroundColor DarkCyan
 	& $venvPython -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
