@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import { useAuth } from '../contexts/AuthContext'
+import { useHistory as useHistoryContext } from '../contexts/HistoryContext'
 import { propertyAPI } from '../services/api'
 import { BadgeCheck, AlertTriangle, Shield, Flame, GraduationCap, Bus, Train, MapPin, Compass, Info, Loader2, TrendingUp, Target, Navigation, Building2, Activity } from 'lucide-react'
 import AnalyzeLocationView from '../components/AnalyzeLocationView'
@@ -28,7 +29,8 @@ function LocationSelector({ onSelect }) {
 }
 
 export default function AnalyzeLocation() {
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
+  const { triggerRefresh } = useHistoryContext()
   const navigate = useNavigate()
   const [position, setPosition] = useState([6.9271, 79.8612]) // Default to Colombo
   const [loading, setLoading] = useState(false)
@@ -52,6 +54,13 @@ export default function AnalyzeLocation() {
       setResult(null)
       const { data } = await propertyAPI.analyzeLocation({ lat, lon })
       setResult(data)
+      
+      // Refresh user data to update analyses_remaining count
+      await refreshUser()
+      
+      // Trigger sidebar history refresh
+      triggerRefresh()
+      
     } catch (e) {
       const msg = e?.response?.data?.detail || e?.message || 'Failed to analyze location'
       setError(msg)

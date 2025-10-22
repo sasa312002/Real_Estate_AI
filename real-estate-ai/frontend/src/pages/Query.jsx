@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { useHistory as useHistoryContext } from '../contexts/HistoryContext'
 import { propertyAPI, authAPI } from '../services/api'
 import ResponseCard from '../components/ResponseCard'
 import LocationPicker from '../components/LocationPicker'
 import { Home, MapPin, Bed, Bath, Ruler, Calendar, ArrowUpRight, X } from 'lucide-react'
 
 function Query() {
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
+  const { triggerRefresh } = useHistoryContext()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [response, setResponse] = useState(null)
@@ -194,6 +196,13 @@ function Query() {
 
         setResponse(mergedBase)
       }
+      
+      // Refresh user data to update analyses_remaining count
+      await refreshUser()
+      
+      // Trigger sidebar history refresh
+      triggerRefresh()
+      
     } catch (err) {
       const status = err.response?.status
       const detail = err.response?.data?.detail
@@ -222,43 +231,49 @@ function Query() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="h-full flex flex-col bg-gradient-to-br from-gray-50 via-white to-blue-50 dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-800 dark:to-blue-900/20 relative overflow-hidden">
+      {/* Animated Background Blur Orbs */}
+      <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-pulse"></div>
+      <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+      
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+      <div className="relative z-10 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-700/50 px-6 py-6 shadow-lg">
         <div className="flex items-center justify-between flex-wrap gap-4">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Property Analysis
-          </h1>
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              Property Analysis
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-2 font-medium">
+              Welcome back, <span className="text-blue-600 dark:text-blue-400 font-semibold">{user?.username}</span>! Analyze properties with AI-powered insights.
+            </p>
+          </div>
           {user && (
             <div className="flex items-center space-x-3">
-              <span className="text-sm bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full font-medium">
-                Plan: <span className="capitalize">{user.plan}</span>
+              <span className="text-sm bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 text-blue-700 dark:text-blue-300 px-4 py-2 rounded-full font-semibold shadow-md border border-blue-200/50 dark:border-blue-700/50">
+                Plan: <span className="capitalize bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{user.plan}</span>
               </span>
-              <span className={`text-sm px-3 py-1 rounded-full font-medium ${user.analyses_remaining === 0 ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'}`}>
+              <span className={`text-sm px-4 py-2 rounded-full font-semibold shadow-md ${user.analyses_remaining === 0 ? 'bg-gradient-to-r from-red-100 to-pink-100 text-red-700 dark:from-red-900/40 dark:to-pink-900/40 dark:text-red-300 border border-red-200 dark:border-red-700' : 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 dark:from-green-900/30 dark:to-emerald-900/30 dark:text-green-300 border border-green-200 dark:border-green-700'}`}>
                 Remaining: {user.analyses_remaining}
               </span>
               <a
                 href="/plans"
-                className="text-sm inline-flex items-center space-x-1 font-semibold text-blue-600 hover:text-purple-600 dark:text-blue-400 dark:hover:text-purple-400"
+                className="group text-sm inline-flex items-center space-x-1 font-bold px-4 py-2 rounded-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
               >
-                <span>Upgrade</span><ArrowUpRight className="w-4 h-4" />
+                <span>Upgrade</span><ArrowUpRight className="w-4 h-4 group-hover:rotate-45 transition-transform duration-300" />
               </a>
             </div>
           )}
         </div>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">
-          Welcome back, {user?.username}! Analyze properties with AI-powered insights.
-        </p>
       </div>
       
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="relative z-10 flex-1 overflow-y-auto p-6">
 
       <div className="space-y-8">
         {/* Query Form */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
-            <Home className="w-6 h-6 mr-2 text-blue-600" />
+        <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-2xl shadow-2xl p-8 border border-gray-200/50 dark:border-gray-700/50 hover:shadow-3xl transition-shadow duration-300">
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-8 flex items-center">
+            <Home className="w-8 h-8 mr-3 text-blue-600 animate-pulse" />
             Property Analysis Form
           </h2>
           
@@ -267,7 +282,7 @@ function Query() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label htmlFor="city" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label htmlFor="city" className="block text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
                   <MapPin className="inline w-5 h-5 mr-2 text-blue-600" />
                   City *
                 </label>
@@ -276,7 +291,7 @@ function Query() {
                     type="text"
                     id="city"
                     required
-                    className={`w-full px-4 py-3 border ${cityValid ? 'border-gray-300 dark:border-gray-600' : 'border-red-500 dark:border-red-500'} dark:bg-gray-700 bg-white text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors pr-10`}
+                    className={`w-full px-5 py-3.5 border ${cityValid ? 'border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500' : 'border-red-500 dark:border-red-500 focus:ring-2 focus:ring-red-500'} dark:bg-gray-700/50 bg-white text-gray-900 dark:text-white rounded-xl focus:outline-none transition-all duration-300 pr-10 shadow-md hover:shadow-lg font-medium`}
                     placeholder="Start typing a Sri Lankan city..."
                     value={cityQuery || formData.features.city}
                     onChange={(e) => handleCityInput(e.target.value)}
@@ -293,30 +308,30 @@ function Query() {
                     </button>
                   )}
                   {showCityDropdown && citySuggestions.length > 0 && (
-                    <ul className="absolute z-20 mt-1 w-full max-h-56 overflow-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg text-sm">
+                    <ul className="absolute z-20 mt-1 w-full max-h-56 overflow-auto bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 rounded-xl shadow-2xl text-sm">
                       {citySuggestions.map(c => (
                         <li
                           key={c}
-                          className="px-3 py-2 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-700 dark:text-gray-200"
+                          className="px-4 py-3 cursor-pointer hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/30 dark:hover:to-purple-900/30 text-gray-700 dark:text-gray-200 font-medium transition-all duration-200 first:rounded-t-xl last:rounded-b-xl"
                           onClick={() => selectCity(c)}
                         >
                           {c}
                         </li>
                       ))}
                       {citySuggestions.length === 0 && (
-                        <li className="px-3 py-2 text-gray-400 dark:text-gray-500">No matches</li>
+                        <li className="px-4 py-3 text-gray-400 dark:text-gray-500 font-medium">No matches</li>
                       )}
                     </ul>
                   )}
                   {!cityValid && (
-                    <p className="mt-2 text-xs text-red-600 dark:text-red-400 font-medium">Enter a valid Sri Lankan city from the suggested list.</p>
+                    <p className="mt-2 text-sm text-red-600 dark:text-red-400 font-bold">Enter a valid Sri Lankan city from the suggested list.</p>
                   )}
                 </div>
               </div>
 
               <div>
-                <label htmlFor="asking_price" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                  <span className="inline-flex items-center px-2 py-1 text-xs font-bold rounded-md bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-700 mr-2">LKR</span>
+                <label htmlFor="asking_price" className="block text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
+                  <span className="inline-flex items-center px-3 py-1 text-xs font-bold rounded-lg bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900 dark:to-emerald-900 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-700 mr-2 shadow-sm">LKR</span>
                   Asking Price *
                 </label>
                 <input
@@ -324,7 +339,7 @@ function Query() {
                   id="asking_price"
                   required
                   min="0"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  className="w-full px-5 py-3.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/50 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 shadow-md hover:shadow-lg font-medium"
                   placeholder="e.g., 20,000,000"
                   value={formData.features.asking_price}
                   onChange={(e) => handleInputChange('asking_price', e.target.value)}
@@ -332,7 +347,7 @@ function Query() {
               </div>
 
               <div>
-                <label htmlFor="beds" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label htmlFor="beds" className="block text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
                   <Bed className="inline w-5 h-5 mr-2 text-blue-600" />
                   Bedrooms *
                 </label>
@@ -342,7 +357,7 @@ function Query() {
                   min="0"
                   max="20"
                   required
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  className="w-full px-5 py-3.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/50 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 shadow-md hover:shadow-lg font-medium"
                   placeholder="e.g., 3"
                   value={formData.features.beds}
                   onChange={(e) => handleInputChange('beds', e.target.value)}
@@ -350,7 +365,7 @@ function Query() {
               </div>
 
               <div>
-                <label htmlFor="baths" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label htmlFor="baths" className="block text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
                   <Bath className="inline w-5 h-5 mr-2 text-blue-600" />
                   Bathrooms *
                 </label>
@@ -360,7 +375,7 @@ function Query() {
                   min="0"
                   max="20"
                   required
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  className="w-full px-5 py-3.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/50 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 shadow-md hover:shadow-lg font-medium"
                   placeholder="e.g., 2"
                   value={formData.features.baths}
                   onChange={(e) => handleInputChange('baths', e.target.value)}
@@ -368,7 +383,7 @@ function Query() {
               </div>
 
               <div>
-                <label htmlFor="area" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label htmlFor="area" className="block text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
                   <Ruler className="inline w-5 h-5 mr-2 text-blue-600" />
                   Area (sq ft) *
                 </label>
@@ -377,7 +392,7 @@ function Query() {
                   id="area"
                   min="0"
                   required
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  className="w-full px-5 py-3.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/50 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 shadow-md hover:shadow-lg font-medium"
                   placeholder="e.g., 1,200"
                   value={formData.features.area}
                   onChange={(e) => handleInputChange('area', e.target.value)}
@@ -385,7 +400,7 @@ function Query() {
               </div>
 
               <div>
-                <label htmlFor="year_built" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label htmlFor="year_built" className="block text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
                   <Calendar className="inline w-5 h-5 mr-2 text-blue-600" />
                   Year Built *
                 </label>
@@ -396,7 +411,7 @@ function Query() {
                   // Only allow current year or past years
                   max={currentYear}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  className="w-full px-5 py-3.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/50 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 shadow-md hover:shadow-lg font-medium"
                   placeholder="e.g., 2015"
                   value={formData.features.year_built}
                   onChange={(e) => {
@@ -413,13 +428,13 @@ function Query() {
                 />
               </div>
               <div className="relative">
-              <label htmlFor="query" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+              <label htmlFor="query" className="block text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
                 📝 Property Description (Optional)
               </label>
               <textarea
                 id="query"
                 rows={3}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                className="w-full px-5 py-3.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/50 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 shadow-md hover:shadow-lg font-medium"
                 placeholder="Describe any additional details about the property you want to analyze..."
                 value={formData.query}
                 onChange={(e) => handleInputChange('query', e.target.value)}
@@ -428,7 +443,7 @@ function Query() {
               {formData.tags.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-3">
                   {formData.tags.map(tag => (
-                    <span key={tag} className="px-2 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs rounded-full cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-800"
+                    <span key={tag} className="px-3 py-1.5 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/40 dark:to-purple-900/40 text-blue-700 dark:text-blue-300 text-sm font-semibold rounded-full cursor-pointer hover:from-blue-200 hover:to-purple-200 dark:hover:from-blue-800 dark:hover:to-purple-800 border border-blue-200 dark:border-blue-700 shadow-sm hover:shadow-md transition-all duration-300"
                       onClick={() => toggleTag(tag)} title="Remove tag">
                       {tag} ✕
                     </span>
@@ -437,17 +452,17 @@ function Query() {
               )}
               {/* Suggestions */}
               {showTagSuggestions && tagSuggestions.length > 0 && (
-                <div className="absolute z-30 mt-2 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 max-h-60 overflow-auto">
-                  <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2 font-semibold">Suggested Tags</p>
+                <div className="absolute z-30 mt-2 w-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 rounded-xl shadow-2xl p-4 max-h-60 overflow-auto">
+                  <p className="text-xs uppercase tracking-wide bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3 font-bold">Suggested Tags</p>
                   <div className="flex flex-wrap gap-2">
                     {tagSuggestions.map(s => (
-                      <button type="button" key={s.tag} className={`px-2 py-1 rounded-full text-xs border transition-colors ${formData.tags.includes(s.tag) ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-blue-100 dark:hover:bg-blue-800/40'}`}
+                      <button type="button" key={s.tag} className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition-all duration-300 ${formData.tags.includes(s.tag) ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white border-blue-600 shadow-lg' : 'bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:from-blue-100 hover:to-purple-100 dark:hover:from-blue-800/40 dark:hover:to-purple-800/40 shadow-sm hover:shadow-md'}`}
                         onClick={() => toggleTag(s.tag)}>
                         {s.tag}
                       </button>
                     ))}
                   </div>
-                  <button type="button" className="mt-3 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" onClick={() => setShowTagSuggestions(false)}>Hide suggestions</button>
+                  <button type="button" className="mt-3 text-xs font-semibold text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors" onClick={() => setShowTagSuggestions(false)}>Hide suggestions</button>
                 </div>
               )}
             </div>
@@ -481,16 +496,16 @@ function Query() {
             <button
               type="submit"
               disabled={loading || !isFormValid}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
+              className="group w-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-5 px-6 rounded-2xl transition-all duration-300 transform hover:scale-[1.02] disabled:scale-100 disabled:cursor-not-allowed shadow-2xl hover:shadow-3xl flex items-center justify-center space-x-3 text-lg"
             >
               {loading ? (
                 <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
                   <span>Analyzing Property...</span>
                 </>
               ) : (
                 <>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
                   <span>{canAnalyze ? 'Analyze Property' : 'Analyze Property'}</span>
@@ -499,28 +514,35 @@ function Query() {
             </button>
 
             {!canAnalyze && (
-              <div className="mt-3 text-sm text-gray-600">
-                Location analysis is available for <a href="/plans" className="text-blue-600 font-semibold">Standard</a> and <a href="/plans" className="text-purple-600 font-semibold">Premium</a> plans. Upgrade to view risk, nearby facilities and location score.
+              <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-700 rounded-xl">
+                <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                  Location analysis is available for <a href="/plans" className="text-blue-600 dark:text-blue-400 font-bold hover:underline">Standard</a> and <a href="/plans" className="text-purple-600 dark:text-purple-400 font-bold hover:underline">Premium</a> plans. Upgrade to view risk, nearby facilities and location score.
+                </p>
               </div>
             )}
           </form>
 
           {error && (
             <div className="mt-6 space-y-4">
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl flex items-center space-x-3">
-                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="font-medium">{error}</span>
+              <div className="p-5 bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 border border-red-200 dark:border-red-800 rounded-2xl shadow-lg">
+                <div className="flex items-start space-x-3">
+                  <svg className="w-6 h-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <h4 className="font-bold text-red-700 dark:text-red-300 text-lg mb-1">Error</h4>
+                    <p className="font-medium text-red-600 dark:text-red-400">{error}</p>
+                  </div>
+                </div>
               </div>
               {error.toLowerCase().includes('limit') && (
-                <div className="p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="p-6 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl text-white shadow-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="flex-1">
-                    <h4 className="font-semibold text-lg mb-1">Upgrade Required</h4>
-                    <p className="text-sm opacity-90">You have used all analyses available in your current plan. Upgrade to Standard or Premium for more analyses.</p>
+                    <h4 className="font-bold text-xl mb-2">Upgrade Required</h4>
+                    <p className="text-sm opacity-95 font-medium">You have used all analyses available in your current plan. Upgrade to Standard or Premium for more analyses.</p>
                   </div>
-                  <a href="/plans" className="inline-flex items-center justify-center px-5 py-3 bg-white/10 hover:bg-white/20 rounded-lg font-semibold text-sm tracking-wide transition-colors border border-white/20">
-                    View Plans <ArrowUpRight className="w-4 h-4 ml-2" />
+                  <a href="/plans" className="group inline-flex items-center justify-center px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl font-bold text-sm tracking-wide transition-all duration-300 border border-white/20 shadow-lg hover:shadow-xl hover:scale-105">
+                    View Plans <ArrowUpRight className="w-4 h-4 ml-2 group-hover:rotate-45 transition-transform duration-300" />
                   </a>
                 </div>
               )}
@@ -534,17 +556,18 @@ function Query() {
             {response && (
               <>
                 {/* Verdict Card */}
-                <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border-l-4 ${getVerdictColor(response.deal_verdict)} border border-gray-200 dark:border-gray-700`}>
-                  <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">Deal Verdict</h3>
-                  <div className="text-3xl font-bold mb-3">{response.deal_verdict}</div>
-                  <p className="text-gray-700 dark:text-gray-300 mb-4">{response.why}</p>
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      Confidence: <span className="font-semibold">{(response.confidence * 100).toFixed(0)}%</span>
+                <div className={`bg-white/95 dark:bg-gray-800/95 backdrop-blur-md rounded-2xl shadow-2xl p-8 border-l-8 ${getVerdictColor(response.deal_verdict)} border border-gray-200/50 dark:border-gray-700/50 hover:shadow-3xl transition-shadow duration-300`}>
+                  <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">Deal Verdict</h3>
+                  <div className="text-4xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{response.deal_verdict}</div>
+                  <p className="text-gray-700 dark:text-gray-300 mb-6 text-lg font-medium leading-relaxed">{response.why}</p>
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="text-sm font-semibold">
+                      <span className="text-gray-600 dark:text-gray-400">Confidence: </span>
+                      <span className="text-xl bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">{(response.confidence * 100).toFixed(0)}%</span>
                     </div>
-                    <div className="flex items-center">
-                      <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-                      <span className="text-xs text-gray-500">AI Analysis Complete</span>
+                    <div className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-full border border-green-200 dark:border-green-700 shadow-sm">
+                      <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></div>
+                      <span className="text-xs font-bold text-green-700 dark:text-green-300">AI Analysis Complete</span>
                     </div>
                   </div>
                 </div>
@@ -556,10 +579,13 @@ function Query() {
 
             {/* Loading State */}
             {loading && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center border border-gray-200 dark:border-gray-700">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Analyzing Property...</h3>
-                <p className="text-gray-600 dark:text-gray-400">Our AI is processing your property data</p>
+              <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-md rounded-2xl shadow-2xl p-12 text-center border border-gray-200/50 dark:border-gray-700/50">
+                <div className="relative inline-block mb-6">
+                  <div className="animate-spin rounded-full h-20 w-20 border-b-4 border-t-4 border-blue-600"></div>
+                  <div className="absolute inset-0 animate-spin rounded-full h-20 w-20 border-r-4 border-l-4 border-purple-600" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+                </div>
+                <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-3">Analyzing Property...</h3>
+                <p className="text-gray-600 dark:text-gray-400 font-medium text-lg">Our AI is processing your property data</p>
               </div>
             )}
           </div>
