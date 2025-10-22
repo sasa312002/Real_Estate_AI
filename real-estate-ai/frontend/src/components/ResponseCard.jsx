@@ -4,7 +4,7 @@ import { ThumbsUp, ThumbsDown, ExternalLink, FileText } from 'lucide-react'
 import MapPreview from './MapPreview'
 import AnalyzeLocationView from './AnalyzeLocationView'
 
-function ResponseCard({ response }) {
+function ResponseCard({ response, inputFeatures }) {
   const [feedback, setFeedback] = useState(null)
   const [submittingFeedback, setSubmittingFeedback] = useState(false)
 
@@ -37,6 +37,11 @@ function ResponseCard({ response }) {
 
   const formatPercentage = (value) => {
     return `${(value * 100).toFixed(1)}%`
+  }
+
+  const formatNumber = (n) => {
+    if (n == null || isNaN(n)) return '-'
+    return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(n)
   }
 
   const normalizeProv = (item) => {
@@ -81,23 +86,62 @@ function ResponseCard({ response }) {
     return null
   })()
 
+  // Derived pricing breakdown
+  const areaSqft = (() => {
+    const v = inputFeatures?.area
+    return typeof v === 'number' ? v : (v ? parseFloat(v) : null)
+  })()
+  const askingPrice = (() => {
+    const v = inputFeatures?.asking_price
+    return typeof v === 'number' ? v : (v ? parseFloat(v) : null)
+  })()
+  const estPerSqft = (() => {
+    if (response?.price_per_sqft && !isNaN(response.price_per_sqft)) return response.price_per_sqft
+    if (response?.estimated_price && areaSqft) return response.estimated_price / areaSqft
+    return null
+  })()
+  const askPerSqft = (() => {
+    if (askingPrice && areaSqft) return askingPrice / areaSqft
+    return null
+  })()
+  const priceDelta = (() => {
+    if (askingPrice && response?.estimated_price) return response.estimated_price - askingPrice
+    return null
+  })()
+  const priceDeltaPct = (() => {
+    if (askingPrice && priceDelta != null && askingPrice !== 0) return priceDelta / askingPrice
+    return null
+  })()
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6 space-y-6">
       <h3 className="text-xl font-semibold text-gray-900">Analysis Results</h3>
       
       {/* Price Analysis */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <div className="bg-blue-50 p-4 rounded-lg">
           <h4 className="font-medium text-blue-900 mb-2">Estimated Market Value</h4>
           <div className="text-2xl font-bold text-blue-700">
             {formatCurrency(response.estimated_price)}
           </div>
         </div>
-        
-        <div className="bg-green-50 p-4 rounded-lg">
-          <h4 className="font-medium text-green-900 mb-2">Location Score</h4>
-          <div className="text-2xl font-bold text-green-700">
-            {formatPercentage(response.location_score)}
+      </div>
+
+      {/* Pricing Breakdown */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-teal-50 p-4 rounded-lg">
+          <h4 className="font-medium text-teal-900 mb-1">Estimated Price / sq ft</h4>
+          <div className="text-xl font-bold text-teal-700">
+            {estPerSqft != null ? `${formatCurrency(estPerSqft)} / sq ft` : '-'}
+          </div>
+        </div>
+        <div className="bg-rose-50 p-4 rounded-lg">
+          <h4 className="font-medium text-rose-900 mb-1">Difference</h4>
+          <div className={`text-xl font-bold ${priceDelta != null ? (priceDelta >= 0 ? 'text-rose-700' : 'text-emerald-700') : 'text-rose-700'}`}>
+            {priceDelta != null ? `${priceDelta >= 0 ? '+' : ''}${formatCurrency(priceDelta)}` : '-'}
+          </div>
+          <div className="text-xs text-rose-800 mt-1">
+            {priceDeltaPct != null ? `${(priceDeltaPct * 100).toFixed(1)}% vs asking` : ''}
           </div>
         </div>
       </div>
