@@ -276,6 +276,19 @@ function Sidebar({ isOpen, onToggle, className = '' }) {
               </svg>
               {!isCollapsed && <span className="font-semibold transition-opacity duration-300">Home</span>}
             </button>
+            
+            <button
+              onClick={() => handleNavigation('/query')}
+              className={`group w-full flex items-center ${isCollapsed ? 'justify-start pl-3 pr-3 py-3' : 'space-x-3 px-4 py-3'} rounded-2xl transition-all duration-200 transform hover:scale-[1.02] ${
+                isActive('/query')
+                  ? 'bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700 shadow-lg'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-50 dark:hover:from-gray-800 dark:hover:to-gray-800/50 hover:text-blue-600 dark:hover:text-blue-400 hover:shadow-md'
+              }`}
+              title={isCollapsed ? 'Property Analysis' : ''}
+            >
+              <MessageSquare className={`${isCollapsed ? 'w-6 h-6' : 'w-5 h-5'} transition-all duration-300 ${isActive('/query') ? 'scale-110' : ''}`} />
+              {!isCollapsed && <span className="font-semibold transition-opacity duration-300">Property Analysis</span>}
+            </button>
 
             <button
               onClick={handleAnalyzeLocationNav}
@@ -291,19 +304,6 @@ function Sidebar({ isOpen, onToggle, className = '' }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
               {!isCollapsed && <span className="font-semibold transition-opacity duration-300">Analyze Location</span>}
-            </button>
-            
-            <button
-              onClick={() => handleNavigation('/query')}
-              className={`group w-full flex items-center ${isCollapsed ? 'justify-start pl-3 pr-3 py-3' : 'space-x-3 px-4 py-3'} rounded-2xl transition-all duration-200 transform hover:scale-[1.02] ${
-                isActive('/query')
-                  ? 'bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700 shadow-lg'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-50 dark:hover:from-gray-800 dark:hover:to-gray-800/50 hover:text-blue-600 dark:hover:text-blue-400 hover:shadow-md'
-              }`}
-              title={isCollapsed ? 'Property Analysis' : ''}
-            >
-              <MessageSquare className={`${isCollapsed ? 'w-6 h-6' : 'w-5 h-5'} transition-all duration-300 ${isActive('/query') ? 'scale-110' : ''}`} />
-              {!isCollapsed && <span className="font-semibold transition-opacity duration-300">Property Analysis</span>}
             </button>
             
             <button

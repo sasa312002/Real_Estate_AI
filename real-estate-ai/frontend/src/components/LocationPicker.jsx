@@ -175,6 +175,9 @@ function LocationPicker({ selectedLocation, onLocationChange, city, className = 
     return null
   }
 
+  // Track if user has manually clicked on the map
+  const [hasManualSelection, setHasManualSelection] = useState(false)
+
   // Update map center when city changes
   useEffect(() => {
     if (city) {
@@ -182,16 +185,16 @@ function LocationPicker({ selectedLocation, onLocationChange, city, className = 
       if (coordinates) {
         setMapCenter(coordinates)
         setZoom(13)
-        // Auto-select coordinates if user hasn't chosen a custom point yet
-        if (!selectedLocation) {
+        // Auto-select coordinates when city changes (unless user manually selected a point)
+        if (!hasManualSelection) {
           onLocationChange(coordinates[0], coordinates[1])
         }
       }
     }
-  }, [city, selectedLocation])
+  }, [city])
 
   const handleLocationSelect = (lat, lng) => {
-    const newLocation = [lat, lng]
+    setHasManualSelection(true)
     onLocationChange(lat, lng)
   }
 
