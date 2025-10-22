@@ -658,7 +658,7 @@ function Query() {
                 </div>
 
                 {/* Analysis Results */}
-                <ResponseCard response={response} />
+                <ResponseCard response={response} inputFeatures={formData.features} />
               </>
             )}
 
