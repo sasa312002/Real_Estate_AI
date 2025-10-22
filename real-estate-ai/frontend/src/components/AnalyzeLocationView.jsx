@@ -123,6 +123,30 @@ export default function AnalyzeLocationView({ result }) {
           )}
         </div>
 
+        <div className="bg-gradient-to-br from-white to-indigo-50 border-2 border-indigo-200 rounded-2xl p-6 shadow-lg">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-xl shadow-md">
+              <MapPin className="w-5 h-5 text-white" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-800">Religious Places</h3>
+          </div>
+          {Array.isArray(result.nearby?.religious_places) && result.nearby.religious_places.length > 0 ? (
+            <div className="space-y-2">
+              {result.nearby.religious_places.map((r, i) => (
+                <div key={i} className="flex items-center justify-between p-2 bg-white rounded-lg border text-sm">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-3.5 h-3.5 text-indigo-600" />
+                    <span className="text-gray-700">{r.name}</span>
+                  </div>
+                  <span className="text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded-full font-semibold">{r.distance_km} km</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500 italic">No religious places found within 1.5 km</p>
+          )}
+        </div>
+
         <div className="bg-gradient-to-br from-white to-blue-50 border-2 border-blue-200 rounded-2xl p-6 shadow-lg">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2.5 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-md">
