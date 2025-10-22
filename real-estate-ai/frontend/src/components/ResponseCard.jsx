@@ -102,6 +102,86 @@ function ResponseCard({ response }) {
         </div>
       </div>
 
+      {/* Key Price Metrics */}
+      {(() => {
+        const area = response?.features?.area ? Number(response.features.area) : null
+        const askingPrice = response?.features?.asking_price ? Number(response.features.asking_price) : null
+        const estPrice = typeof response?.estimated_price === 'number' ? response.estimated_price : null
+        const estPpsf = response?.price_per_sqft ? Number(response.price_per_sqft) : (area && estPrice ? estPrice / area : null)
+        const askPpsf = area && askingPrice ? askingPrice / area : null
+        const diff = (askingPrice != null && estPrice != null) ? askingPrice - estPrice : null
+        const diffPct = (askingPrice != null && estPrice) ? (askingPrice / estPrice - 1) : null
+        if (!(area || askingPrice || estPpsf || askPpsf)) return null
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {area != null && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="text-sm text-gray-600">Area</div>
+                <div className="text-xl font-semibold text-gray-900">{Number(area).toLocaleString()} sq ft</div>
+              </div>
+            )}
+            {askingPrice != null && (
+              <div className="bg-purple-50 p-4 rounded-lg">
+                <div className="text-sm text-purple-800">Asking Price</div>
+                <div className="text-xl font-semibold text-purple-900">{formatCurrency(askingPrice)}</div>
+              </div>
+            )}
+            {estPpsf != null && (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <div className="text-sm text-blue-800">Est. Price / sq ft</div>
+                <div className="text-xl font-semibold text-blue-900">{formatCurrency(Math.round(estPpsf))}</div>
+              </div>
+            )}
+            {askPpsf != null && (
+              <div className="bg-amber-50 p-4 rounded-lg">
+                <div className="text-sm text-amber-800">Asking / sq ft</div>
+                <div className="text-xl font-semibold text-amber-900">{formatCurrency(Math.round(askPpsf))}</div>
+              </div>
+            )}
+            {diff != null && (
+              <div className={`md:col-span-2 p-4 rounded-lg ${diff > 0 ? 'bg-red-50' : 'bg-emerald-50'}`}>
+                <div className={`text-sm ${diff > 0 ? 'text-red-800' : 'text-emerald-800'}`}>
+                  {diff > 0 ? 'Over Ask vs Estimate' : 'Below Ask vs Estimate'}
+                </div>
+                <div className={`text-xl font-semibold ${diff > 0 ? 'text-red-900' : 'text-emerald-900'}`}>
+                  {formatCurrency(Math.abs(diff))}
+                  {diffPct != null && (
+                    <span className="ml-2 text-sm font-medium">({(diffPct * 100).toFixed(1)}%)</span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
+      {/* Property Details */}
+      {response?.features && (
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <h4 className="font-medium text-gray-900 mb-3">Property details</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+            {response.features.city && (
+              <div><span className="text-gray-600">City:</span> <span className="font-medium text-gray-900">{response.features.city}</span></div>
+            )}
+            {response.features.district && (
+              <div><span className="text-gray-600">District:</span> <span className="font-medium text-gray-900">{response.features.district}</span></div>
+            )}
+            {response.features.property_type && (
+              <div><span className="text-gray-600">Type:</span> <span className="font-medium text-gray-900">{response.features.property_type}</span></div>
+            )}
+            {response.features.beds != null && response.features.beds !== '' && (
+              <div><span className="text-gray-600">Bedrooms:</span> <span className="font-medium text-gray-900">{response.features.beds}</span></div>
+            )}
+            {response.features.baths != null && response.features.baths !== '' && (
+              <div><span className="text-gray-600">Bathrooms:</span> <span className="font-medium text-gray-900">{response.features.baths}</span></div>
+            )}
+            {response.features.year_built && (
+              <div><span className="text-gray-600">Year Built:</span> <span className="font-medium text-gray-900">{response.features.year_built}</span></div>
+            )}
+          </div>
+        </div>
+      )}
+
       {response.analyze_restricted ? (
         <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
           <div className="flex items-center justify-between">

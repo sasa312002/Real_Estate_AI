@@ -184,7 +184,7 @@ function Query() {
       const plan = user?.plan?.toLowerCase()
       const allowedPlans = ['standard', 'premium']
 
-      if (!allowedPlans.includes(plan)) {
+        if (!allowedPlans.includes(plan)) {
         // Free user: only run the price/deal query and mark analyze as restricted
         const qRes = await propertyAPI.query({ 
           query: formData.query, 
@@ -192,7 +192,7 @@ function Query() {
           tags: formData.tags,
           request_id: requestId 
         })
-        const mergedBase = { ...(qRes.data || {}), analyze_location: null, analyze_restricted: true }
+        const mergedBase = { ...(qRes.data || {}), analyze_location: null, analyze_restricted: true, features }
         setResponse(mergedBase)
       } else {
         // Allowed user: run analyze and query in parallel but don't let analyze failures block the main query
@@ -223,7 +223,7 @@ function Query() {
           try { const fresh = await authAPI.me(); effectivePlan = fresh.data?.plan?.toLowerCase() || effectivePlan } catch {}
         }
 
-        const mergedBase = { ...(qRes.data || {}) }
+  const mergedBase = { ...(qRes.data || {}), features }
 
         // If analyze call succeeded and the user's plan allows it, attach it; otherwise show restricted/empty
         if (allowedPlans.includes(effectivePlan) && anResSettled.status === 'fulfilled') {
