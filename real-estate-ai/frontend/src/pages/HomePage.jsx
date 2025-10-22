@@ -13,7 +13,6 @@ import {
   Target,
   CheckCircle2,
   ArrowRight,
-  Star,
   Users,
   Sparkles
 } from 'lucide-react'
@@ -74,32 +73,7 @@ const HomePage = () => {
     { number: '500+', label: 'Happy Users', icon: <Users className="w-6 h-6" /> },
   ]
 
-  const testimonials = [
-    {
-      name: 'Ranil Perera',
-      role: 'Property Investor',
-      location: 'Colombo',
-      comment: 'This platform helped me make a confident investment decision. The AI analysis was spot-on!',
-      rating: 5,
-      avatar: 'RP'
-    },
-    {
-      name: 'Shalini Fernando',
-      role: 'First-time Home Buyer',
-      location: 'Kandy',
-      comment: 'Easy to use and very informative. I found my dream home with the location analysis feature.',
-      rating: 5,
-      avatar: 'SF'
-    },
-    {
-      name: 'Kamal Silva',
-      role: 'Real Estate Agent',
-      location: 'Galle',
-      comment: 'A game-changer for real estate professionals. My clients love the detailed reports!',
-      rating: 5,
-      avatar: 'KS'
-    },
-  ]
+  
 
   const benefits = [
     'Save time with instant AI-powered analysis',
@@ -381,54 +355,7 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Testimonials Section - New */}
-      <section className="py-16 sm:py-20 lg:py-24 bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 dark:from-purple-900/10 dark:via-blue-900/10 dark:to-pink-900/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12 sm:mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-full mb-4">
-              <Star className="w-4 h-4 text-purple-600 dark:text-purple-400 fill-current" />
-              <span className="text-sm font-semibold text-purple-700 dark:text-purple-300">Success Stories</span>
-            </div>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
-              What Our Users Say
-            </h2>
-            <p className="text-base sm:text-lg lg:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              Join hundreds of satisfied users making smarter property decisions
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
-            {testimonials.map((testimonial, index) => (
-              <div 
-                key={index} 
-                className="bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-200 dark:border-gray-700 group hover:-translate-y-1"
-              >
-                <div className="flex items-center gap-1 mb-4">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500 fill-current" />
-                  ))}
-                </div>
-                <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 mb-6 leading-relaxed italic">
-                  "{testimonial.comment}"
-                </p>
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm sm:text-base shadow-lg">
-                    {testimonial.avatar}
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base">
-                      {testimonial.name}
-                    </h4>
-                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                      {testimonial.role} • {testimonial.location}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      
 
       {/* Plans Overview - Enhanced */}
       <section className="py-12 sm:py-16 bg-white dark:bg-gray-800">
