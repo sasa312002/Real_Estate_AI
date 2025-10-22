@@ -209,78 +209,7 @@ async def analyze_location_endpoint(
         # Facility group counts summary under 1km
         counts_summary = location_agent.summarize_facility_counts(nearby, radius_km=1.0)
 
-        # Persist analysis into Query/Response history so user can see it later
-        try:
-            from datetime import timedelta, datetime
-            # Look for recent query by this user with same coords within last hour
-            cutoff = datetime.utcnow() - timedelta(hours=1)
-            recent = await Query.find({
-                'user_id': current_user.id,
-                'lat': req.lat,
-                'lon': req.lon,
-                'created_at': {'$gte': cutoff}
-            }).sort([('created_at', -1)]).limit(1).to_list()
-
-            analyze_payload = {
-                'score': base.get('score', 0.5),
-                'summary': base.get('summary', ''),
-                'bullets': base.get('bullets', []),
-                'provenance': base.get('provenance', []),
-                'risk': risk,
-                'nearby': nearby,
-                'facility_counts': counts_summary.get('counts'),
-                'facility_summary': counts_summary.get('summary')
-            }
-
-            if recent and len(recent) > 0:
-                q = recent[0]
-                # Try to find an existing response
-                resp = await Response.find_one({'query_id': q.id})
-                if resp:
-                    resp.analyze_location = analyze_payload
-                    await resp.save()
-                else:
-                    # Create a lightweight response record
-                    new_resp = Response(
-                        query_id=q.id,
-                        estimated_price=0,
-                        location_score=analyze_payload.get('score', 0.5),
-                        analyze_location=analyze_payload,
-                        deal_verdict='N/A',
-                        why='Location analysis only',
-                        confidence=0.0,
-                        provenance=analyze_payload.get('provenance', [])
-                    )
-                    await new_resp.insert()
-            else:
-                # Create a new Query and Response to record this analyze action
-                new_q = Query(
-                    user_id=current_user.id,
-                    query_text=f"Location analysis at {req.lat},{req.lon}",
-                    tags=[],
-                    city=req.city,
-                    lat=req.lat,
-                    lon=req.lon,
-                    beds=None,
-                    baths=None,
-                    area=None,
-                    year_built=None,
-                    asking_price=None
-                )
-                await new_q.insert()
-                new_resp = Response(
-                    query_id=new_q.id,
-                    estimated_price=0,
-                    location_score=analyze_payload.get('score', 0.5),
-                    analyze_location=analyze_payload,
-                    deal_verdict='N/A',
-                    why='Location analysis only',
-                    confidence=0.0,
-                    provenance=analyze_payload.get('provenance', [])
-                )
-                await new_resp.insert()
-        except Exception as e:
-            logger.warning(f"Failed to persist analyze_location to history: {e}")
+        # Do not persist location analysis to history (as per user requirement)
 
         return LocationAnalysisResponse(
             score=base.get('score', 0.5),
