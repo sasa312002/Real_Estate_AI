@@ -23,6 +23,7 @@ class PropertyQuery(BaseModel):
     query: str
     features: Dict[str, Any]
     tags: Optional[List[str]] = None
+    request_id: Optional[str] = None  # Add unique request identifier to prevent caching
 
 class PropertyResponse(BaseModel):
     estimated_price: float
@@ -60,6 +61,7 @@ class LocationRequest(BaseModel):
     lon: float
     city: Optional[str] = None
     district: Optional[str] = None
+    request_id: Optional[str] = None  # Add unique request identifier to prevent caching
 
 class LocationAmenity(BaseModel):
     name: str
@@ -84,6 +86,10 @@ async def analyze_property(
 ):
     """Analyze a property using AI agents including land details"""
     try:
+        # Log request for debugging
+        request_id = property_query.request_id or 'no-id'
+        logger.info(f"Processing property analysis request_id={request_id}, user={current_user.username}, lat={property_query.features.get('lat')}, lon={property_query.features.get('lon')}")
+        
         # Enforce plan limits
         plan = getattr(current_user, 'plan', 'free')
         used = getattr(current_user, 'analyses_used', 0)

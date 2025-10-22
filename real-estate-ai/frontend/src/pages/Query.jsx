@@ -20,6 +20,8 @@ function Query() {
     tags: [],
     features: {
       city: '',
+      district: '',
+      property_type: 'House',
       lat: '',
       lon: '',
       beds: '',
@@ -45,6 +47,36 @@ function Query() {
     'Badulla','Monaragala','Bibile','Welimada',
     'Ratnapura','Balangoda','Kegalle','Mawanella'
   ]
+  
+  // All 25 districts of Sri Lanka
+  const sriLankaDistricts = [
+    'Colombo',
+    'Gampaha',
+    'Kalutara',
+    'Kandy',
+    'Matale',
+    'Nuwara Eliya',
+    'Galle',
+    'Matara',
+    'Hambantota',
+    'Jaffna',
+    'Kilinochchi',
+    'Mannar',
+    'Vavuniya',
+    'Mullaitivu',
+    'Batticaloa',
+    'Ampara',
+    'Trincomalee',
+    'Kurunegala',
+    'Puttalam',
+    'Anuradhapura',
+    'Polonnaruwa',
+    'Badulla',
+    'Monaragala',
+    'Ratnapura',
+    'Kegalle'
+  ]
+  
   const [cityQuery, setCityQuery] = useState('')
   const [citySuggestions, setCitySuggestions] = useState([])
   const [showCityDropdown, setShowCityDropdown] = useState(false)
@@ -146,21 +178,34 @@ function Query() {
         }
       })
 
+      // Add unique request identifier to prevent caching issues
+      const requestId = `${Date.now()}_${Math.random().toString(36).substring(7)}`
+
       const plan = user?.plan?.toLowerCase()
       const allowedPlans = ['standard', 'premium']
 
       if (!allowedPlans.includes(plan)) {
         // Free user: only run the price/deal query and mark analyze as restricted
-        const qRes = await propertyAPI.query({ query: formData.query, features, tags: formData.tags })
+        const qRes = await propertyAPI.query({ 
+          query: formData.query, 
+          features, 
+          tags: formData.tags,
+          request_id: requestId 
+        })
         const mergedBase = { ...(qRes.data || {}), analyze_location: null, analyze_restricted: true }
         setResponse(mergedBase)
       } else {
         // Allowed user: run analyze and query in parallel but don't let analyze failures block the main query
         const analyzeCall = (features.lat != null && features.lon != null)
-          ? propertyAPI.analyzeLocation({ lat: features.lat, lon: features.lon })
+          ? propertyAPI.analyzeLocation({ lat: features.lat, lon: features.lon, request_id: requestId })
           : Promise.resolve({ data: null })
 
-        const queryCall = propertyAPI.query({ query: formData.query, features, tags: formData.tags })
+        const queryCall = propertyAPI.query({ 
+          query: formData.query, 
+          features, 
+          tags: formData.tags,
+          request_id: requestId 
+        })
 
         // Use allSettled so a failing analyze call won't reject the whole operation
         const [anResSettled, qResSettled] = await Promise.allSettled([analyzeCall, queryCall])
@@ -327,6 +372,46 @@ function Query() {
                     <p className="mt-2 text-sm text-red-600 dark:text-red-400 font-bold">Enter a valid Sri Lankan city from the suggested list.</p>
                   )}
                 </div>
+              </div>
+
+              <div>
+                <label htmlFor="district" className="block text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
+                  <MapPin className="inline w-5 h-5 mr-2 text-purple-600" />
+                  District
+                </label>
+                <select
+                  id="district"
+                  className="w-full px-5 py-3.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/50 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 shadow-md hover:shadow-lg font-medium appearance-none cursor-pointer"
+                  value={formData.features.district}
+                  onChange={(e) => handleInputChange('district', e.target.value)}
+                >
+                  <option value="">Select District (Optional)</option>
+                  {sriLankaDistricts.map(district => (
+                    <option key={district} value={district}>{district}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Optional - helps with location-based pricing</p>
+              </div>
+
+              <div>
+                <label htmlFor="property_type" className="block text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
+                  <Home className="inline w-5 h-5 mr-2 text-blue-600" />
+                  Property Type *
+                </label>
+                <select
+                  id="property_type"
+                  required
+                  className="w-full px-5 py-3.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/50 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 shadow-md hover:shadow-lg font-medium appearance-none cursor-pointer"
+                  value={formData.features.property_type}
+                  onChange={(e) => handleInputChange('property_type', e.target.value)}
+                >
+                  <option value="House">House</option>
+                  <option value="Apartment">Apartment</option>
+                  <option value="Villa">Villa</option>
+                  <option value="Townhouse">Townhouse</option>
+                  <option value="Land">Land</option>
+                  <option value="Commercial">Commercial</option>
+                </select>
               </div>
 
               <div>
