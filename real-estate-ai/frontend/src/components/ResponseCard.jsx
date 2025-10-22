@@ -86,23 +86,16 @@ function ResponseCard({ response }) {
       <h3 className="text-xl font-semibold text-gray-900">Analysis Results</h3>
       
       {/* Price Analysis */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
         <div className="bg-blue-50 p-4 rounded-lg">
           <h4 className="font-medium text-blue-900 mb-2">Estimated Market Value</h4>
           <div className="text-2xl font-bold text-blue-700">
             {formatCurrency(response.estimated_price)}
           </div>
         </div>
-        
-        <div className="bg-green-50 p-4 rounded-lg">
-          <h4 className="font-medium text-green-900 mb-2">Location Score</h4>
-          <div className="text-2xl font-bold text-green-700">
-            {formatPercentage(response.location_score)}
-          </div>
-        </div>
       </div>
 
-      {/* Key Price Metrics */}
+      {/* Key Price Metrics (area and asking price tiles removed by request) */}
       {(() => {
         const area = response?.features?.area ? Number(response.features.area) : null
         const askingPrice = response?.features?.asking_price ? Number(response.features.asking_price) : null
@@ -111,21 +104,9 @@ function ResponseCard({ response }) {
         const askPpsf = area && askingPrice ? askingPrice / area : null
         const diff = (askingPrice != null && estPrice != null) ? askingPrice - estPrice : null
         const diffPct = (askingPrice != null && estPrice) ? (askingPrice / estPrice - 1) : null
-        if (!(area || askingPrice || estPpsf || askPpsf)) return null
+        if (!(estPpsf || askPpsf || diff != null)) return null
         return (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {area != null && (
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="text-sm text-gray-600">Area</div>
-                <div className="text-xl font-semibold text-gray-900">{Number(area).toLocaleString()} sq ft</div>
-              </div>
-            )}
-            {askingPrice != null && (
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <div className="text-sm text-purple-800">Asking Price</div>
-                <div className="text-xl font-semibold text-purple-900">{formatCurrency(askingPrice)}</div>
-              </div>
-            )}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {estPpsf != null && (
               <div className="bg-blue-50 p-4 rounded-lg">
                 <div className="text-sm text-blue-800">Est. Price / sq ft</div>
@@ -139,7 +120,7 @@ function ResponseCard({ response }) {
               </div>
             )}
             {diff != null && (
-              <div className={`md:col-span-2 p-4 rounded-lg ${diff > 0 ? 'bg-red-50' : 'bg-emerald-50'}`}>
+              <div className={`p-4 rounded-lg ${diff > 0 ? 'bg-red-50' : 'bg-emerald-50'}`}>
                 <div className={`text-sm ${diff > 0 ? 'text-red-800' : 'text-emerald-800'}`}>
                   {diff > 0 ? 'Over Ask vs Estimate' : 'Below Ask vs Estimate'}
                 </div>

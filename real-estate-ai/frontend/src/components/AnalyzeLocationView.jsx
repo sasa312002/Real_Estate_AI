@@ -5,7 +5,8 @@ import MapPreview from './MapPreview'
 export default function AnalyzeLocationView({ result }) {
   if (!result) return null
 
-  const scorePct = Math.round((result?.score || 0) * 100)
+  const scoreRaw = Number(result?.score || 0)
+  const scorePct = Math.round(scoreRaw * 100)
   const riskLevel = (result?.risk?.level || 'N/A').toString()
   const riskColor = riskLevel === 'High' ? 'bg-red-100 text-red-700 border-red-200' : riskLevel === 'Medium' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : riskLevel === 'Low' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-gray-100 text-gray-700 border-gray-200'
 
@@ -23,7 +24,7 @@ export default function AnalyzeLocationView({ result }) {
           <div className="mb-4 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Location Score</span>
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{scorePct}%</span>
+              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{scoreRaw.toFixed(2)}</span>
             </div>
             <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden shadow-inner">
               <div 
