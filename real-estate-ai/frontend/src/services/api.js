@@ -3,7 +3,7 @@ import axios from 'axios'
 // Create axios instance
 export const api = axios.create({
   baseURL: '/api', // This will be proxied to the backend
-  timeout: 10000,
+  timeout: 120000, // 120 seconds (2 minutes) for AI analysis
   headers: {
     'Content-Type': 'application/json',
   },

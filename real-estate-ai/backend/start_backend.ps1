@@ -15,8 +15,8 @@ $venvPython = Join-Path $PSScriptRoot '.venv/Scripts/python.exe'
 $env:PYTHONPATH = $PSScriptRoot
 if (Test-Path $venvPython) {
 	Write-Host "Using venv interpreter: $venvPython" -ForegroundColor DarkCyan
-	& $venvPython -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+	& $venvPython -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --timeout-keep-alive 300
 } else {
 	Write-Warning "Virtual environment python not found at $venvPython; falling back to system 'python'"
-	python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+	python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --timeout-keep-alive 300
 }
