@@ -65,7 +65,7 @@ class LocationAgent:
             # Define search radii (meters)
             amenity_radius = 1500
             road_radius = 2000
-            # Overpass QL query - include hospitals, supermarkets, pharmacies, schools, universities, police, transport, and major roads
+            # Overpass QL query - include hospitals, supermarkets, pharmacies, schools, universities, police, transport, religious places, and major roads
             query = f"""
             [out:json];
             (
@@ -81,6 +81,8 @@ class LocationAgent:
                 way["amenity"="university"](around:{amenity_radius},{lat},{lon});
                 node["amenity"="police"](around:{amenity_radius},{lat},{lon});
                 node["amenity"="fire_station"](around:{amenity_radius},{lat},{lon});
+                node["amenity"="place_of_worship"](around:{amenity_radius},{lat},{lon});
+                way["amenity"="place_of_worship"](around:{amenity_radius},{lat},{lon});
                 node["amenity"="bus_station"](around:{amenity_radius},{lat},{lon});
                 node["railway"="station"](around:{amenity_radius},{lat},{lon});
                 way["highway"~"motorway|trunk|primary"](around:{road_radius},{lat},{lon});
@@ -95,6 +97,7 @@ class LocationAgent:
             results: Dict[str, List[Dict[str, Any]]] = {
                 'hospitals': [], 'supermarkets': [], 'pharmacies': [], 'schools': [], 'universities': [], 'police': [],
                 'fire_stations': [], 'bus_stations': [], 'train_stations': [], 'roads': [],
+                'religious_places': [],
                 'waterways': [], 'water_bodies': [], 'railways': [], 'industrial_areas': []
             }
             async with httpx.AsyncClient(timeout=20.0) as client:
@@ -123,6 +126,8 @@ class LocationAgent:
                     way["amenity"="university"](around:{amenity_radius2},{lat},{lon});
                     node["amenity"="police"](around:{amenity_radius2},{lat},{lon});
                     node["amenity"="fire_station"](around:{amenity_radius2},{lat},{lon});
+                    node["amenity"="place_of_worship"](around:{amenity_radius2},{lat},{lon});
+                    way["amenity"="place_of_worship"](around:{amenity_radius2},{lat},{lon});
                     node["amenity"="bus_station"](around:{amenity_radius2},{lat},{lon});
                     node["railway"="station"](around:{amenity_radius2},{lat},{lon});
                     way["highway"~"motorway|trunk|primary"](around:{road_radius2},{lat},{lon});
@@ -180,6 +185,21 @@ class LocationAgent:
                     results['police'].append(item)
                 elif tags.get('amenity') == 'fire_station':
                     results['fire_stations'].append(item)
+                elif tags.get('amenity') == 'place_of_worship':
+                    # Use religion tag to create a friendly name if no name present
+                    religion = tags.get('religion')
+                    if (not name or name == 'Unnamed') and religion:
+                        friendly = {
+                            'buddhist': 'Buddhist Temple',
+                            'hindu': 'Hindu Kovil',
+                            'christian': 'Church',
+                            'muslim': 'Mosque',
+                            'islam': 'Mosque'
+                        }.get((religion or '').lower(), 'Place of Worship')
+                        item['name'] = friendly
+                    elif not name or name == 'Unnamed':
+                        item['name'] = 'Place of Worship'
+                    results['religious_places'].append(item)
                 elif tags.get('amenity') == 'bus_station':
                     results['bus_stations'].append(item)
                 elif tags.get('railway') == 'station':
