@@ -143,53 +143,281 @@ function History() {
       if (!details[id]) setDetails(prev => ({ ...prev, [id]: detail }))
 
       const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+      const pageWidth = doc.internal.pageSize.getWidth()
       const margin = 40
       let y = margin
-      const line = (text, opts={}) => {
-        const maxWidth = 515
-        const fontSize = opts.size || 12
-        doc.setFontSize(fontSize)
-        const lines = doc.splitTextToSize(text ?? '', maxWidth)
-        lines.forEach(l => {
-          doc.text(l, margin, y)
-          y += fontSize + 4
-          if (y > 780) { doc.addPage(); y = margin }
-        })
+      
+      const checkPageBreak = (minSpace = 60) => {
+        if (y + minSpace > 760) {
+          doc.addPage()
+          y = margin
+        }
       }
 
-      doc.setFontSize(16)
-      doc.text('Real Estate Analysis', margin, y); y += 24
-      line(`Query: ${items.find(i => i.id === id)?.query_text || ''}`)
-      line(`City: ${items.find(i => i.id === id)?.city || '-'}`)
-      line(`Date: ${new Date(items.find(i => i.id === id)?.created_at || Date.now()).toLocaleString()}`)
-      y += 8
+      const addColoredBox = (label, value, bgColor, textColor) => {
+        checkPageBreak(80)
+        doc.setFillColor(...bgColor)
+        doc.rect(margin, y, pageWidth - 2 * margin, 50, 'F')
+        
+        doc.setFontSize(10)
+        doc.setTextColor(100, 100, 100)
+        doc.text(label, margin + 10, y + 15)
+        
+        doc.setFontSize(14)
+        doc.setTextColor(...textColor)
+        doc.setFont(undefined, 'bold')
+        const lines = doc.splitTextToSize(String(value), pageWidth - 2 * margin - 20)
+        lines.forEach((line, idx) => {
+          doc.text(line, margin + 10, y + 35 + (idx * 12))
+        })
+        doc.setFont(undefined, 'normal')
+        doc.setTextColor(0, 0, 0)
+        
+        y += 60
+      }
 
-      doc.setFontSize(14)
-      doc.text('Summary', margin, y); y += 18
-      line(detail.why || '-')
+      const addSectionTitle = (title, color) => {
+        checkPageBreak(40)
+        doc.setFillColor(...color)
+        doc.rect(margin, y, pageWidth - 2 * margin, 25, 'F')
+        
+        doc.setFontSize(14)
+        doc.setTextColor(255, 255, 255)
+        doc.setFont(undefined, 'bold')
+        doc.text(title, margin + 10, y + 17)
+        doc.setFont(undefined, 'normal')
+        doc.setTextColor(0, 0, 0)
+        
+        y += 35
+      }
+
+      const addText = (text, fontSize = 11, bold = false, indent = 0) => {
+        checkPageBreak(30)
+        doc.setFontSize(fontSize)
+        if (bold) doc.setFont(undefined, 'bold')
+        const maxWidth = pageWidth - 2 * margin - indent
+        const lines = doc.splitTextToSize(text, maxWidth)
+        lines.forEach(line => {
+          doc.text(line, margin + indent, y)
+          y += fontSize + 4
+          if (y > 760) {
+            doc.addPage()
+            y = margin
+          }
+        })
+        if (bold) doc.setFont(undefined, 'normal')
+      }
+
+      // Header with gradient effect
+      doc.setFillColor(30, 58, 138) // Dark blue
+      doc.rect(0, 0, pageWidth, 80, 'F')
+      
+      doc.setFontSize(28)
+      doc.setTextColor(255, 255, 255)
+      doc.setFont(undefined, 'bold')
+      doc.text('Real Estate Analysis Report', margin, 35)
+      
+      const historyItem = items.find(i => i.id === id)
+      doc.setFontSize(11)
+      doc.setFont(undefined, 'normal')
+      doc.text(`Generated on ${new Date().toLocaleString()}`, margin, 55)
+      
+      y = 95
+
+      // Query Info Section
+      addSectionTitle('Query Information', [52, 152, 219])
+      addText(`Query: ${historyItem?.query_text || 'N/A'}`, 11, true)
+      addText(`City: ${historyItem?.city || '-'}`, 11)
+      if (historyItem?.lat && historyItem?.lon) {
+        addText(`Location: ${Number(historyItem.lat).toFixed(4)}, ${Number(historyItem.lon).toFixed(4)}`, 11)
+      }
+      if (historyItem?.tags && historyItem.tags.length > 0) {
+        addText(`Tags: ${historyItem.tags.join(', ')}`, 11)
+      }
+      addText(`Analysis Date: ${new Date(historyItem?.created_at || Date.now()).toLocaleString()}`, 10)
+      y += 6
+
+      // Key Metrics Section with colored boxes
+      addSectionTitle('Key Metrics', [46, 204, 113])
+      
+      addColoredBox('Estimated Market Value', formatCurrency(detail.estimated_price, detail), [173, 216, 230], [0, 51, 102])
+      
+      const locationScore = detail.location_score ?? 0
+      const scorePct = Math.round(locationScore * 100)
+      const scoreColor = scorePct >= 70 ? [144, 238, 144] : scorePct >= 40 ? [255, 218, 185] : [255, 182, 193]
+      const scoreTextColor = scorePct >= 70 ? [0, 100, 0] : scorePct >= 40 ? [178, 90, 0] : [139, 0, 0]
+      addColoredBox('Location Score', `${scorePct}%`, scoreColor, scoreTextColor)
+      
+      const dealColor = detail.deal_verdict === 'Good Deal' ? [144, 238, 144] : detail.deal_verdict === 'Fair Deal' ? [255, 218, 185] : [255, 182, 193]
+      const dealTextColor = detail.deal_verdict === 'Good Deal' ? [0, 100, 0] : detail.deal_verdict === 'Fair Deal' ? [178, 90, 0] : [139, 0, 0]
+      addColoredBox('Deal Verdict', detail.deal_verdict || '-', dealColor, dealTextColor)
+      
+      const confidence = detail.confidence != null ? (detail.confidence * 100).toFixed(0) : 'N/A'
+      addColoredBox('Confidence Level', `${confidence}%`, [216, 191, 216], [75, 0, 130])
 
       y += 6
-      doc.setFontSize(14)
-      doc.text('Key Metrics', margin, y); y += 16
-      line(`Estimated Price: ${formatCurrency(detail.estimated_price, detail)}`)
-      line(`Location Score: ${formatPercentage(detail.location_score)}`)
-      line(`Deal Verdict: ${detail.deal_verdict || '-'}`)
-      line(`Confidence: ${detail.confidence != null ? (detail.confidence * 100).toFixed(0) + '%' : '-'}`)
 
-      if (Array.isArray(detail.provenance) && detail.provenance.length > 0) {
-        y += 6
-        doc.setFontSize(14)
-        doc.text('Sources', margin, y); y += 16
-        detail.provenance.forEach((raw, idx) => {
-          const p = normalizeProv(raw)
-          line(`${idx + 1}. ${p.title}`)
-          if (p.snippet) line(`   ${p.snippet}`)
-          if (p.link) line(`   ${p.link}`)
-          y += 4
+      // Summary Section
+      addSectionTitle('Analysis Summary', [155, 89, 182])
+      if (detail.why) {
+        addText(detail.why, 11)
+      } else {
+        addText('No summary available', 10)
+      }
+      y += 6
+
+      // Location Analysis if available
+      if (detail.analyze_location) {
+        addSectionTitle('Location Analysis', [52, 73, 94])
+        
+        const locationResult = detail.analyze_location
+        const locScorePct = Math.round((locationResult?.score || 0) * 100)
+        
+        checkPageBreak(60)
+        doc.setFillColor(240, 248, 255)
+        doc.rect(margin, y, pageWidth - 2 * margin, 50, 'F')
+        doc.setDrawColor(30, 144, 255)
+        doc.setLineWidth(2)
+        doc.rect(margin, y, pageWidth - 2 * margin, 50)
+        
+        doc.setFontSize(12)
+        doc.setFont(undefined, 'bold')
+        doc.setTextColor(30, 58, 138)
+        doc.text(`Location Score: ${locScorePct}%`, margin + 10, y + 15)
+        
+        doc.setFontSize(10)
+        doc.setFont(undefined, 'normal')
+        const locSummary = locationResult.summary ? locationResult.summary.substring(0, 150) + '...' : 'Analysis complete'
+        const summaryLines = doc.splitTextToSize(locSummary, pageWidth - 2 * margin - 20)
+        summaryLines.slice(0, 2).forEach((line, idx) => {
+          doc.text(line, margin + 10, y + 30 + (idx * 12))
+        })
+        
+        y += 60
+
+        // Risk Assessment
+        if (locationResult.risk) {
+          checkPageBreak(60)
+          const riskLevel = (locationResult.risk.level || 'N/A').toString()
+          const riskBgColor = riskLevel === 'High' ? [255, 200, 200] : riskLevel === 'Medium' ? [255, 238, 200] : [200, 255, 200]
+          const riskTextColor = riskLevel === 'High' ? [178, 34, 34] : riskLevel === 'Medium' ? [178, 90, 0] : [0, 100, 0]
+          
+          doc.setFillColor(...riskBgColor)
+          doc.rect(margin, y, pageWidth - 2 * margin, 40, 'F')
+          doc.setDrawColor(...riskTextColor)
+          doc.setLineWidth(2)
+          doc.rect(margin, y, pageWidth - 2 * margin, 40)
+          
+          doc.setFontSize(12)
+          doc.setFont(undefined, 'bold')
+          doc.setTextColor(...riskTextColor)
+          doc.text(`Risk Assessment: ${riskLevel} Risk`, margin + 10, y + 15)
+          
+          doc.setFontSize(9)
+          doc.setFont(undefined, 'normal')
+          if (locationResult.risk.summary) {
+            const riskLines = doc.splitTextToSize(locationResult.risk.summary.substring(0, 120), pageWidth - 2 * margin - 20)
+            riskLines.slice(0, 1).forEach((line, idx) => {
+              doc.text(line, margin + 10, y + 28 + (idx * 10))
+            })
+          }
+          
+          y += 50
+        }
+
+        // Nearby Facilities
+        const nearby = locationResult.nearby || {}
+        const facilityGroups = [
+          { name: 'Hospitals', key: 'hospitals', color: [200, 255, 200] },
+          { name: 'Schools', key: 'schools', color: [200, 220, 255] },
+          { name: 'Transport', key: 'bus_stations', color: [255, 240, 200] }
+        ]
+
+        facilityGroups.forEach(group => {
+          const facilities = nearby[group.key] || []
+          if (facilities.length > 0) {
+            checkPageBreak(50)
+            doc.setFillColor(...group.color)
+            doc.rect(margin, y, pageWidth - 2 * margin, 20, 'F')
+            doc.setDrawColor(100, 100, 100)
+            doc.setLineWidth(1)
+            doc.rect(margin, y, pageWidth - 2 * margin, 20)
+            
+            doc.setFontSize(11)
+            doc.setFont(undefined, 'bold')
+            doc.setTextColor(0, 0, 0)
+            doc.text(`${group.name}`, margin + 10, y + 14)
+            
+            y += 25
+            
+            doc.setFontSize(9)
+            doc.setFont(undefined, 'normal')
+            facilities.slice(0, 5).forEach(facility => {
+              addText(`• ${facility.name} (${facility.distance_km} km away)`, 9, false, 10)
+            })
+            if (facilities.length > 5) {
+              addText(`...and ${facilities.length - 5} more`, 9, true, 10)
+            }
+            y += 6
+          }
         })
       }
 
-      doc.save(`analysis_${id}.pdf`)
+      // Sources Section
+      if (Array.isArray(detail.provenance) && detail.provenance.length > 0) {
+        y += 6
+        addSectionTitle('Sources & References', [230, 126, 34])
+        
+        detail.provenance.forEach((raw, idx) => {
+          const p = normalizeProv(raw)
+          checkPageBreak(50)
+          
+          doc.setFillColor(255, 248, 240)
+          doc.rect(margin, y, pageWidth - 2 * margin, 5, 'F')
+          doc.setDrawColor(200, 100, 50)
+          doc.setLineWidth(1)
+          doc.rect(margin, y, pageWidth - 2 * margin, 5)
+          
+          y += 12
+          
+          doc.setFontSize(11)
+          doc.setFont(undefined, 'bold')
+          doc.setTextColor(139, 69, 19)
+          addText(`${idx + 1}. ${p.title}`)
+          
+          if (p.snippet) {
+            doc.setFontSize(10)
+            doc.setFont(undefined, 'normal')
+            doc.setTextColor(80, 80, 80)
+            addText(`${p.snippet}`, 9)
+          }
+          
+          if (p.link) {
+            doc.setFontSize(9)
+            doc.setTextColor(0, 0, 255)
+            addText(`Link: ${p.link.substring(0, 80)}${p.link.length > 80 ? '...' : ''}`, 8)
+          }
+          
+          y += 6
+        })
+      }
+
+      // Footer
+      checkPageBreak(20)
+      y = 750
+      doc.setFontSize(8)
+      doc.setTextColor(150, 150, 150)
+      doc.text('Real Estate AI - Powered by Advanced Analysis', pageWidth / 2, y, { align: 'center' })
+      
+      const totalPages = doc.internal.pages.length - 1
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i)
+        doc.setFontSize(8)
+        doc.setTextColor(200, 200, 200)
+        doc.text(`Page ${i} of ${totalPages}`, pageWidth - margin - 30, 760)
+      }
+
+      doc.save(`real_estate_analysis_${id}.pdf`)
     } catch (e) {
       alert(e.response?.data?.detail || 'Failed to generate PDF')
     }
