@@ -3,6 +3,7 @@ import { propertyAPI } from '../services/api'
 import { Clock, Search, ChevronDown, ChevronUp, ExternalLink, Trash2, Download } from 'lucide-react'
 import jsPDF from 'jspdf'
 import MapPreview from '../components/MapPreview'
+import AnalyzeLocationView from '../components/AnalyzeLocationView'
 import { useLocation } from 'react-router-dom'
 
 function History() {
@@ -238,6 +239,15 @@ function History() {
                       {h.city}
                     </div>
                   )}
+                  {/* Show small summary of user inputs */}
+                  <div className="text-xs text-gray-500">
+                    {h.tags && h.tags.length > 0 && (
+                      <span className="mr-2">Tags: {h.tags.join(', ')}</span>
+                    )}
+                    {h.lat != null && h.lon != null && (
+                      <span>Coords: {Number(h.lat).toFixed(4)},{Number(h.lon).toFixed(4)}</span>
+                    )}
+                  </div>
                   <div className="text-xs text-gray-500 flex items-center">
                     <Clock className="h-3.5 w-3.5 mr-1" />
                     {new Date(h.created_at).toLocaleString()}
@@ -274,7 +284,7 @@ function History() {
                 {!loadingDetailId && details[h.id]?.error && (
                   <div className="text-sm text-red-600">{details[h.id].error}</div>
                 )}
-                {!loadingDetailId && details[h.id] && !details[h.id].error && (
+                    {!loadingDetailId && details[h.id] && !details[h.id].error && (
                   <div className="bg-gray-50 rounded-md p-4 space-y-3">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div>
@@ -323,6 +333,14 @@ function History() {
                         </div>
                       </div>
                     )}
+                    
+                      {/* Location analysis output (if present) */}
+                      {details[h.id].analyze_location && (
+                        <div className="mt-4">
+                          <h4 className="text-sm font-semibold text-gray-700 mb-2">Saved Location Analysis</h4>
+                          <AnalyzeLocationView result={details[h.id].analyze_location} />
+                        </div>
+                      )}
                   </div>
                 )}
               </div>

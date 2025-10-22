@@ -23,6 +23,7 @@ class PropertyQuery(BaseModel):
     query: str
     features: Dict[str, Any]
     tags: Optional[List[str]] = None
+    request_id: Optional[str] = None  # Add unique request identifier to prevent caching
 
 class PropertyResponse(BaseModel):
     estimated_price: float
@@ -38,11 +39,20 @@ class PropertyResponse(BaseModel):
     price_per_sqft: Optional[float] = None
     plan: Optional[str] = None
     analyses_remaining: Optional[int] = None
+    analyze_location: Optional[Dict[str, Any]] = None
 
 class QueryHistory(BaseModel):
     id: str
     query_text: str
     city: Optional[str] = None
+    tags: Optional[List[str]] = None
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+    beds: Optional[int] = None
+    baths: Optional[int] = None
+    area: Optional[float] = None
+    year_built: Optional[int] = None
+    asking_price: Optional[float] = None
     created_at: str
     has_response: bool
 
@@ -51,6 +61,7 @@ class LocationRequest(BaseModel):
     lon: float
     city: Optional[str] = None
     district: Optional[str] = None
+    request_id: Optional[str] = None  # Add unique request identifier to prevent caching
 
 class LocationAmenity(BaseModel):
     name: str
@@ -75,6 +86,10 @@ async def analyze_property(
 ):
     """Analyze a property using AI agents including land details"""
     try:
+        # Log request for debugging
+        request_id = property_query.request_id or 'no-id'
+        logger.info(f"Processing property analysis request_id={request_id}, user={current_user.username}, lat={property_query.features.get('lat')}, lon={property_query.features.get('lon')}")
+        
         # Enforce plan limits
         plan = getattr(current_user, 'plan', 'free')
         used = getattr(current_user, 'analyses_used', 0)
@@ -123,6 +138,7 @@ async def analyze_property(
             query_id=db_query.id,
             estimated_price=analysis_result['estimated_price'],
             location_score=analysis_result['location_score'],
+            analyze_location=analysis_result.get('analyze_location'),
             deal_verdict=analysis_result['deal_verdict'],
             why=analysis_result['why'],
             confidence=analysis_result['confidence'],
@@ -193,6 +209,79 @@ async def analyze_location_endpoint(
         # Facility group counts summary under 1km
         counts_summary = location_agent.summarize_facility_counts(nearby, radius_km=1.0)
 
+        # Persist analysis into Query/Response history so user can see it later
+        try:
+            from datetime import timedelta, datetime
+            # Look for recent query by this user with same coords within last hour
+            cutoff = datetime.utcnow() - timedelta(hours=1)
+            recent = await Query.find({
+                'user_id': current_user.id,
+                'lat': req.lat,
+                'lon': req.lon,
+                'created_at': {'$gte': cutoff}
+            }).sort([('created_at', -1)]).limit(1).to_list()
+
+            analyze_payload = {
+                'score': base.get('score', 0.5),
+                'summary': base.get('summary', ''),
+                'bullets': base.get('bullets', []),
+                'provenance': base.get('provenance', []),
+                'risk': risk,
+                'nearby': nearby,
+                'facility_counts': counts_summary.get('counts'),
+                'facility_summary': counts_summary.get('summary')
+            }
+
+            if recent and len(recent) > 0:
+                q = recent[0]
+                # Try to find an existing response
+                resp = await Response.find_one({'query_id': q.id})
+                if resp:
+                    resp.analyze_location = analyze_payload
+                    await resp.save()
+                else:
+                    # Create a lightweight response record
+                    new_resp = Response(
+                        query_id=q.id,
+                        estimated_price=0,
+                        location_score=analyze_payload.get('score', 0.5),
+                        analyze_location=analyze_payload,
+                        deal_verdict='N/A',
+                        why='Location analysis only',
+                        confidence=0.0,
+                        provenance=analyze_payload.get('provenance', [])
+                    )
+                    await new_resp.insert()
+            else:
+                # Create a new Query and Response to record this analyze action
+                new_q = Query(
+                    user_id=current_user.id,
+                    query_text=f"Location analysis at {req.lat},{req.lon}",
+                    tags=[],
+                    city=req.city,
+                    lat=req.lat,
+                    lon=req.lon,
+                    beds=None,
+                    baths=None,
+                    area=None,
+                    year_built=None,
+                    asking_price=None
+                )
+                await new_q.insert()
+                new_resp = Response(
+                    query_id=new_q.id,
+                    estimated_price=0,
+                    location_score=analyze_payload.get('score', 0.5),
+                    analyze_location=analyze_payload,
+                    deal_verdict='N/A',
+                    why='Location analysis only',
+                    confidence=0.0,
+                    provenance=analyze_payload.get('provenance', [])
+                )
+                await new_resp.insert()
+        except Exception as e:
+            logger.warning(f"Failed to persist analyze_location to history: {e}")
+
         return LocationAnalysisResponse(
             score=base.get('score', 0.5),
             summary=base.get('summary', ''),
@@ -231,6 +320,14 @@ async def get_query_history(
                 id=str(query.id),
                 query_text=query.query_text,
                 city=query.city,
+                tags=query.tags,
+                lat=query.lat,
+                lon=query.lon,
+                beds=query.beds,
+                baths=query.baths,
+                area=query.area,
+                year_built=query.year_built,
+                asking_price=query.asking_price,
                 created_at=query.created_at.isoformat(),
                 has_response=has_response
             ))
@@ -316,6 +413,7 @@ async def get_query_details(
             why=response.why,
             provenance=provenance,
             confidence=response.confidence or 0,
+            analyze_location=getattr(response, 'analyze_location', None),
             query_id=str(query.id),
             response_id=str(response.id),
             land_details=None,
@@ -460,6 +558,24 @@ async def _run_analysis_pipeline(features: Dict[str, Any], query_text: str, tags
         )
         location_score = location_result['score']
         provenance.extend(location_result.get('provenance', []))
+        # Also fetch nearby amenities and risk to attach as analyze_location summary
+        try:
+            nearby = await location_agent.get_nearby_amenities(features.get('lat'), features.get('lon')) if features.get('lat') and features.get('lon') else {}
+            risk = location_agent.llm_analyze_location_risk(features.get('lat'), features.get('lon'), features.get('city'), features.get('district'), nearby)
+            counts_summary = location_agent.summarize_facility_counts(nearby, radius_km=1.0) if nearby else {'counts': None, 'summary': None}
+            analyze_location = {
+                'score': location_result.get('score'),
+                'summary': location_result.get('summary'),
+                'bullets': location_result.get('bullets'),
+                'provenance': location_result.get('provenance'),
+                'risk': risk,
+                'nearby': nearby,
+                'facility_counts': counts_summary.get('counts'),
+                'facility_summary': counts_summary.get('summary')
+            }
+        except Exception as e:
+            analyze_location = None
+            logger.warning(f"Failed to attach analyze_location in pipeline: {e}")
         
         # 3. Deal evaluation
         asking_price = features.get('asking_price', 0)
@@ -474,6 +590,7 @@ async def _run_analysis_pipeline(features: Dict[str, Any], query_text: str, tags
         result = {
             'estimated_price': estimated_price,
             'location_score': location_score,
+            'analyze_location': analyze_location,
             'deal_verdict': deal_result['verdict'],
             'why': deal_result['why'],
             'confidence': min(price_result['confidence'], deal_result['confidence']),

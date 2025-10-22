@@ -65,31 +65,35 @@ class LocationAgent:
             # Define search radii (meters)
             amenity_radius = 1500
             road_radius = 2000
-            # Overpass QL query
+            # Overpass QL query - include hospitals, supermarkets, pharmacies, schools, universities, police, transport, and major roads
             query = f"""
             [out:json];
             (
-              node["amenity"="hospital"](around:{amenity_radius},{lat},{lon});
-              way["amenity"="hospital"](around:{amenity_radius},{lat},{lon});
-              node["amenity"="school"](around:{amenity_radius},{lat},{lon});
-              way["amenity"="school"](around:{amenity_radius},{lat},{lon});
-              node["amenity"="university"](around:{amenity_radius},{lat},{lon});
-              way["amenity"="university"](around:{amenity_radius},{lat},{lon});
-              node["amenity"="police"](around:{amenity_radius},{lat},{lon});
-              node["amenity"="fire_station"](around:{amenity_radius},{lat},{lon});
-              node["amenity"="bus_station"](around:{amenity_radius},{lat},{lon});
-              node["railway"="station"](around:{amenity_radius},{lat},{lon});
-              way["highway"~"motorway|trunk|primary"](around:{road_radius},{lat},{lon});
-                            way["waterway"~"river|stream|canal"](around:{road_radius},{lat},{lon});
-                            way["natural"="water"](around:{road_radius},{lat},{lon});
-                            way["railway"~"rail|light_rail|subway"](around:{road_radius},{lat},{lon});
-                            way["landuse"="industrial"](around:{road_radius},{lat},{lon});
+                node["amenity"="hospital"](around:{amenity_radius},{lat},{lon});
+                way["amenity"="hospital"](around:{amenity_radius},{lat},{lon});
+                node["shop"="supermarket"](around:{amenity_radius},{lat},{lon});
+                way["shop"="supermarket"](around:{amenity_radius},{lat},{lon});
+                node["amenity"="pharmacy"](around:{amenity_radius},{lat},{lon});
+                way["amenity"="pharmacy"](around:{amenity_radius},{lat},{lon});
+                node["amenity"="school"](around:{amenity_radius},{lat},{lon});
+                way["amenity"="school"](around:{amenity_radius},{lat},{lon});
+                node["amenity"="university"](around:{amenity_radius},{lat},{lon});
+                way["amenity"="university"](around:{amenity_radius},{lat},{lon});
+                node["amenity"="police"](around:{amenity_radius},{lat},{lon});
+                node["amenity"="fire_station"](around:{amenity_radius},{lat},{lon});
+                node["amenity"="bus_station"](around:{amenity_radius},{lat},{lon});
+                node["railway"="station"](around:{amenity_radius},{lat},{lon});
+                way["highway"~"motorway|trunk|primary"](around:{road_radius},{lat},{lon});
+                way["waterway"~"river|stream|canal"](around:{road_radius},{lat},{lon});
+                way["natural"="water"](around:{road_radius},{lat},{lon});
+                way["railway"~"rail|light_rail|subway"](around:{road_radius},{lat},{lon});
+                way["landuse"="industrial"](around:{road_radius},{lat},{lon});
             );
             out center 40;
             """
             url = "https://overpass-api.de/api/interpreter"
             results: Dict[str, List[Dict[str, Any]]] = {
-                'hospitals': [], 'schools': [], 'universities': [], 'police': [],
+                'hospitals': [], 'supermarkets': [], 'pharmacies': [], 'schools': [], 'universities': [], 'police': [],
                 'fire_stations': [], 'bus_stations': [], 'train_stations': [], 'roads': [],
                 'waterways': [], 'water_bodies': [], 'railways': [], 'industrial_areas': []
             }
@@ -98,6 +102,45 @@ class LocationAgent:
                 resp.raise_for_status()
                 data = resp.json()
             elements = data.get('elements', [])
+
+            # If no elements were returned (sparse area or Overpass shortfall), retry once with larger radius
+            if not elements:
+                logger.info("Overpass returned no elements; retrying with larger radius")
+                amenity_radius2 = amenity_radius * 2
+                road_radius2 = road_radius * 2
+                query2 = f"""
+                [out:json];
+                (
+                    node["amenity"="hospital"](around:{amenity_radius2},{lat},{lon});
+                    way["amenity"="hospital"](around:{amenity_radius2},{lat},{lon});
+                    node["shop"="supermarket"](around:{amenity_radius2},{lat},{lon});
+                    way["shop"="supermarket"](around:{amenity_radius2},{lat},{lon});
+                    node["amenity"="pharmacy"](around:{amenity_radius2},{lat},{lon});
+                    way["amenity"="pharmacy"](around:{amenity_radius2},{lat},{lon});
+                    node["amenity"="school"](around:{amenity_radius2},{lat},{lon});
+                    way["amenity"="school"](around:{amenity_radius2},{lat},{lon});
+                    node["amenity"="university"](around:{amenity_radius2},{lat},{lon});
+                    way["amenity"="university"](around:{amenity_radius2},{lat},{lon});
+                    node["amenity"="police"](around:{amenity_radius2},{lat},{lon});
+                    node["amenity"="fire_station"](around:{amenity_radius2},{lat},{lon});
+                    node["amenity"="bus_station"](around:{amenity_radius2},{lat},{lon});
+                    node["railway"="station"](around:{amenity_radius2},{lat},{lon});
+                    way["highway"~"motorway|trunk|primary"](around:{road_radius2},{lat},{lon});
+                    way["waterway"~"river|stream|canal"](around:{road_radius2},{lat},{lon});
+                    way["natural"="water"](around:{road_radius2},{lat},{lon});
+                    way["railway"~"rail|light_rail|subway"](around:{road_radius2},{lat},{lon});
+                    way["landuse"="industrial"](around:{road_radius2},{lat},{lon});
+                );
+                out center 40;
+                """
+                try:
+                    async with httpx.AsyncClient(timeout=20.0) as client:
+                        resp2 = await client.post(url, data={"data": query2})
+                        resp2.raise_for_status()
+                        data2 = resp2.json()
+                    elements = data2.get('elements', [])
+                except Exception as e2:
+                    logger.warning(f"Overpass retry failed: {e2}")
 
             def haversine(lat1, lon1, lat2, lon2):
                 from math import radians, sin, cos, sqrt, atan2
@@ -124,6 +167,11 @@ class LocationAgent:
                 item = { 'name': name, 'lat': el_lat, 'lon': el_lon, 'distance_km': round(distance, 3) }
                 if tags.get('amenity') == 'hospital':
                     results['hospitals'].append(item)
+                elif tags.get('shop') == 'supermarket' or tags.get('shop') == 'convenience':
+                    # Treat convenience stores as essential supermarkets in sparse areas
+                    results['supermarkets'].append(item)
+                elif tags.get('amenity') == 'pharmacy':
+                    results['pharmacies'].append(item)
                 elif tags.get('amenity') == 'school':
                     results['schools'].append(item)
                 elif tags.get('amenity') == 'university':
@@ -156,7 +204,7 @@ class LocationAgent:
             return results
         except Exception as e:
             logger.error(f"Overpass nearby amenities error: {e}")
-            return {'hospitals': [], 'schools': [], 'universities': [], 'police': [], 'fire_stations': [], 'bus_stations': [], 'train_stations': [], 'roads': [], 'waterways': [], 'water_bodies': [], 'railways': [], 'industrial_areas': []}
+            return {'hospitals': [], 'supermarkets': [], 'pharmacies': [], 'schools': [], 'universities': [], 'police': [], 'fire_stations': [], 'bus_stations': [], 'train_stations': [], 'roads': [], 'waterways': [], 'water_bodies': [], 'railways': [], 'industrial_areas': []}
 
     def llm_analyze_location_risk(self, lat: float, lon: float, city: Optional[str], district: Optional[str], nearby: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Use Gemini to analyze risk factors and return structured JSON.
@@ -289,8 +337,9 @@ class LocationAgent:
         """Compute group-wise facility counts within a given radius and return counts and a user-friendly summary."""
         def count_within(items: List[Dict[str, Any]]) -> int:
             return sum(1 for i in items if i.get('distance_km') is not None and i['distance_km'] <= radius_km)
-
         hospitals = count_within(nearby.get('hospitals', []))
+        supermarkets = count_within(nearby.get('supermarkets', []))
+        pharmacies = count_within(nearby.get('pharmacies', []))
         education = count_within(nearby.get('schools', [])) + count_within(nearby.get('universities', []))
         transport = count_within(nearby.get('bus_stations', [])) + count_within(nearby.get('train_stations', []))
         safety = count_within(nearby.get('police', [])) + count_within(nearby.get('fire_stations', []))
@@ -298,19 +347,32 @@ class LocationAgent:
 
         counts = {
             'hospitals': hospitals,
+            'supermarkets': supermarkets,
+            'pharmacies': pharmacies,
             'education': education,
             'transport': transport,
             'safety_services': safety,
             'major_roads': roads
         }
-        parts = []
-        if hospitals: parts.append(f"{hospitals} hospital(s)")
-        if education: parts.append(f"{education} education center(s)")
-        if transport: parts.append(f"{transport} transport hub(s)")
-        if safety: parts.append(f"{safety} safety service(s)")
-        if roads: parts.append(f"{roads} major road(s)")
-        summary = "Within 1 km: " + (", ".join(parts) if parts else "No major facilities detected")
-        return { 'counts': counts, 'summary': summary }
+
+        parts: List[str] = []
+        if hospitals:
+            parts.append(f"{hospitals} hospital(s)")
+        if supermarkets:
+            parts.append(f"{supermarkets} supermarket(s)")
+        if pharmacies:
+            parts.append(f"{pharmacies} pharmacy(ies)")
+        if education:
+            parts.append(f"{education} education center(s)")
+        if transport:
+            parts.append(f"{transport} transport hub(s)")
+        if safety:
+            parts.append(f"{safety} safety service(s)")
+        if roads:
+            parts.append(f"{roads} major road(s)")
+
+        summary = f"Within {radius_km} km: " + (", ".join(parts) if parts else "No major facilities detected")
+        return {'counts': counts, 'summary': summary}
     
     def _calculate_location_score(self, lat: float, lon: float, city: str = None, district: str = None) -> float:
         """Calculate location score (0-1) based on various Sri Lankan factors"""
@@ -549,7 +611,20 @@ class LocationAgent:
         elif location_score >= 0.6:
             return f"Fair location in {city}{' - ' + district if district else ''}. Developing area with potential for growth and improvement."
         else:
-            return f"Basic location in {city}{' - ' + district if district else ''}. Area with basic amenities and potential for development."
+            # Provide a slightly more informative summary referencing the score
+            loc = ''
+            if city:
+                loc = f" in {city}"
+                if district:
+                    loc += f" - {district}"
+            score_pct = int(location_score * 100) if isinstance(location_score, (int, float)) else None
+            score_text = f" (Score: {score_pct}%)" if score_pct is not None else ''
+            # Clear, user-focused summary with guidance
+            return (
+                f"Location has a low score{score_text}. "
+                f"This indicates limited nearby amenities (schools, hospitals, transport) and/or higher local risks. "
+                f"Check the 'Nearby facilities' and 'Risk Assessment' sections to see which factors affect this location and whether they matter for your decision."
+            )
     
     def _generate_provenance(self, lat: float, lon: float, city: str = None, district: str = None) -> List[Dict]:
         """Generate provenance information for location analysis with real links"""

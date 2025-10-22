@@ -27,10 +27,20 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Only redirect to login if we're not already on the login/signup page
+    // and if the 401 is for an authenticated endpoint (has a token)
     if (error.response?.status === 401) {
-      // Token expired or invalid
-      localStorage.removeItem('token')
-      window.location.href = '/login'
+      const token = localStorage.getItem('token')
+      const isAuthPage = window.location.pathname === '/login' || window.location.pathname === '/signup'
+      
+      // Only redirect if user had a token (was logged in) and is not on auth page
+      if (token && !isAuthPage) {
+        localStorage.removeItem('token')
+        window.location.href = '/login'
+      } else if (!isAuthPage) {
+        // If no token, just remove any stale token
+        localStorage.removeItem('token')
+      }
     }
     return Promise.reject(error)
   }

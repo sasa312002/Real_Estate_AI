@@ -11,6 +11,7 @@ import Plans from './pages/Plans'
 import AnalyzeLocation from './pages/AnalyzeLocation'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { HistoryProvider } from './contexts/HistoryContext'
 import './App.css'
 
 function AppContent() {
@@ -125,7 +126,9 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppContent />
+        <HistoryProvider>
+          <AppContent />
+        </HistoryProvider>
       </AuthProvider>
     </ThemeProvider>
   )

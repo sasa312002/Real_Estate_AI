@@ -16,3 +16,35 @@ code {
     monospace;
 }
 
+/* Shake animation for form validation errors */
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-8px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(8px);
+  }
+}
+
+.shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+/* Error input border animation */
+@keyframes errorPulse {
+  0%, 100% {
+    border-color: rgb(239, 68, 68);
+  }
+  50% {
+    border-color: rgb(248, 113, 113);
+  }
+}
+
+.error-input {
+  animation: errorPulse 0.5s ease-in-out;
+  border-color: rgb(239, 68, 68) !important;
+}
+
