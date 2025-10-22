@@ -258,20 +258,7 @@ export default function Plans() {
                   </>
                 )}
                 {key === 'premium' && (
-                  <>
-                    <li className="flex items-start space-x-3">
-                      <div className="mt-1 p-1 bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-full">
-                        <Check className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                      </div>
-                      <span className="text-gray-700 dark:text-gray-300 font-medium">Advanced market insights</span>
-                    </li>
-                    <li className="flex items-start space-x-3">
-                      <div className="mt-1 p-1 bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-full">
-                        <Check className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                      </div>
-                      <span className="text-gray-700 dark:text-gray-300 font-medium">Detailed location scoring</span>
-                    </li>
-                  </>
+                  <></>
                 )}
               </ul>
 
