@@ -37,6 +37,25 @@ export default function AnalyzeLocation() {
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
 
+  // Katunayake (Bandaranaike International Airport) coordinates
+  const AIRPORT_COORDS = { lat: 7.1808, lon: 79.8841 }
+
+  // Haversine distance in kilometers between two [lat, lon]
+  const haversineKm = (a, b) => {
+    if (!a || !b) return null
+    const toRad = (deg) => (deg * Math.PI) / 180
+    const R = 6371 // km
+    const [lat1, lon1] = a
+    const [lat2, lon2] = b
+    const dLat = toRad(lat2 - lat1)
+    const dLon = toRad(lon2 - lon1)
+    const s1 = Math.sin(dLat / 2)
+    const s2 = Math.sin(dLon / 2)
+    const aa = s1 * s1 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * s2 * s2
+    const c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa))
+    return R * c
+  }
+
   // Check plan access (only Standard and Premium allowed)
   useEffect(() => {
     const plan = user?.plan?.toLowerCase()
@@ -156,7 +175,24 @@ export default function AnalyzeLocation() {
         ) : error ? (
           <div className="bg-red-50 rounded-2xl p-6 shadow-sm border border-red-200 text-red-700">{error}</div>
         ) : result ? (
-          <AnalyzeLocationView result={result} />
+          <>
+            <AnalyzeLocationView result={result} />
+
+            {/* Distance to Bandaranaike International Airport (Katunayake) */}
+            <div className="mt-6 bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-sm">
+                  <Navigation className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Distance to Bandaranaike International Airport (Katunayake)
+                </h3>
+              </div>
+              <p className="text-gray-700 dark:text-gray-300">
+                Approximate geodesic distance from the selected location: {haversineKm(position, [AIRPORT_COORDS.lat, AIRPORT_COORDS.lon])?.toFixed(2)} km
+              </p>
+            </div>
+          </>
         ) : (
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 text-gray-600">Click on the map to begin analysis.</div>
         )}
