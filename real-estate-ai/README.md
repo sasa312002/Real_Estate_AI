@@ -58,16 +58,7 @@ A comprehensive AI-powered real estate analysis platform specifically designed f
    # Edit .env with your configuration
    ```
 
-5. **Initialize database:**
-   ```bash
-   # Create initial migration
-   alembic revision --autogenerate -m "Initial migration"
-   
-   # Apply migration
-   alembic upgrade head
-   ```
-
-6. **Run the backend:**
+5. **Run the backend:**
    ```bash
    uvicorn app.main:app --reload
    ```
@@ -100,7 +91,7 @@ The frontend will be available at `http://localhost:3000`
 Create a `.env` file in the backend directory:
 
 ```env
-DATABASE_URL=sqlite:///./realestate.db
+MONGODB_URL=mongodb://localhost:27017
 JWT_SECRET=your_secure_jwt_secret_here
 GEMINI_API_KEY=your_google_gemini_api_key
 ALLOW_ORIGINS=*
@@ -110,8 +101,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 
 ### Database Configuration
 
-- **SQLite (Default)**: No additional setup required
-- **PostgreSQL**: Install `psycopg2-binary` and update `DATABASE_URL`
+- **MongoDB**: Make sure MongoDB is running locally or provide a MongoDB Atlas connection string
 
 ## 🧪 Testing
 
@@ -222,10 +212,9 @@ real-estate-ai/
 │   │   ├── agents/           # AI agents for analysis
 │   │   ├── api/              # API endpoints
 │   │   ├── core/             # Configuration and security
-│   │   ├── db/               # Database setup
-│   │   ├── models/           # SQLAlchemy models
+│   │   ├── db/               # Database setup (MongoDB)
+│   │   ├── models/           # Data models (Beanie/MongoDB)
 │   │   └── main.py           # FastAPI application
-│   ├── alembic/              # Database migrations
 │   ├── tests/                # Test files
 │   ├── requirements.txt      # Python dependencies
 │   └── env.example          # Environment variables template
