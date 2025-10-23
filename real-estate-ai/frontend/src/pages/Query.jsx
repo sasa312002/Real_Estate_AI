@@ -385,12 +385,12 @@ function Query() {
                   value={formData.features.district}
                   onChange={(e) => handleInputChange('district', e.target.value)}
                 >
-                  <option value="">Select District (Optional)</option>
+                  <option value="">Select District</option>
                   {sriLankaDistricts.map(district => (
                     <option key={district} value={district}>{district}</option>
                   ))}
                 </select>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Optional - helps with location-based pricing</p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400"></p>
               </div>
 
               <div>
