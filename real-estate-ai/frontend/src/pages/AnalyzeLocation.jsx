@@ -77,6 +77,9 @@ export default function AnalyzeLocation() {
       // Refresh user data to update analyses_remaining count
       await refreshUser()
       
+      // Trigger sidebar history refresh
+      triggerRefresh()
+      
     } catch (e) {
       const msg = e?.response?.data?.detail || e?.message || 'Failed to analyze location'
       setError(msg)

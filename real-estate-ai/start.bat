@@ -44,11 +44,6 @@ if not exist ".env" (
     echo ⚠️  Please edit .env file with your configuration (especially JWT_SECRET and GEMINI_API_KEY)
 )
 
-REM Initialize database
-echo 🗄️  Initializing database...
-alembic revision --autogenerate -m "Initial migration"
-alembic upgrade head
-
 echo ✅ Backend setup complete!
 cd ..
 
